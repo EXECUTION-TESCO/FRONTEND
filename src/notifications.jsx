@@ -41,7 +41,7 @@ export function NotificationsProvider({ children }) {
 
   // unread count in the browser tab title
   useEffect(() => {
-    document.title = state.unread ? `(${state.unread}) Execution Portal` : 'Execution Portal';
+    document.title = state.unread ? `(${state.unread}) Execution CRM - Tesco Structures` : 'Execution CRM - Tesco Structures';
   }, [state.unread]);
 
   // auto-hide toasts
