@@ -70,7 +70,10 @@ function Shell({ children }) {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="side-logo"><img src="/tescologo-light.png" alt="Tesco Structures" /><span>Execution Portal</span></div>
+        <div className="side-brand">
+          <img src="/favicon.png" alt="" />
+          <div><b>Tesco Structures</b><span>Execution Management</span></div>
+        </div>
         <nav>
           {links.filter((l) => !l.mobileOnly).map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className="side-link">
