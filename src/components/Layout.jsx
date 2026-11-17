@@ -66,7 +66,6 @@ function Shell({ children }) {
         { to: '/', icon: LayoutDashboard, label: 'My Sites', end: true },
         { to: '/submit', icon: PlusCircle, label: 'Submit Update' },
         { to: '/reports', icon: FileText, label: 'My Updates' },
-        { to: '/handovers', icon: FileStack, label: 'Handovers' },
         { to: '/notifications', icon: Bell, label: 'Alerts' },
         { logout: true, icon: LogOut, label: 'Logout', mobileOnly: true },
       ];
