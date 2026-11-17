@@ -576,3 +576,7 @@ button.bn-link { background: none; border: 0; font: inherit; font-size: 11px; fo
 .cal-task.dot-blue{background:#2563eb}.cal-task.dot-green{background:#16a34a}.cal-task.dot-amber{background:#d97706}.cal-task.dot-orange{background:#ea580c}.cal-task.dot-gray{background:#64748b}
 .cal-task.overdue{outline:2px solid #dc2626}
 @media(max-width:640px){.cal-cell{min-height:64px}.cal-task{font-size:10px}}
+
+/* Dashboard KPI cards (Design-CRM style) */
+.dcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:18px}
+.dcard:hover{box-shadow:0 12px 28px -12px rgba(15,23,42,.22)!important}

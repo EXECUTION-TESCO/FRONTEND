@@ -3,13 +3,14 @@ import { FolderKanban, CheckCircle2, Hammer, MapPinned, Eye, FileStack, ArrowRig
 import { useLiveApi as useApi } from '../hooks.js';
 import { fmtDate, fmtDateTime, fmtTime } from '../api.js';
 import { Badge, Loader, ErrorBox, Empty, Progress } from '../components/ui.jsx';
+import StatCard from '../components/StatCard.jsx';
 
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
 const CARDS = [
-  ['totalProjects', 'Total Projects', FolderKanban, 'navy', '/projects'],
-  ['completedProjects', 'Completed Projects', CheckCircle2, 'green', '/projects?status=Completed'],
-  ['inProgress', 'Projects In Progress', Hammer, 'teal', '/projects?status=Work In Progress'],
+  { k: 'totalProjects', title: 'Total Projects', icon: <FolderKanban size={20} />, trend: 'All sites', desc: 'Projects', color: '#4F46E5', bg: '#E0E7FF', to: '/projects' },
+  { k: 'completedProjects', title: 'Completed Projects', icon: <CheckCircle2 size={20} />, trend: 'Delivered', desc: 'Done', color: '#22C55E', bg: '#DCFCE7', to: '/projects?status=Completed' },
+  { k: 'inProgress', title: 'Projects In Progress', icon: <Hammer size={20} />, trend: 'Active', desc: 'On site', color: '#0D9488', bg: '#CCFBF1', to: '/projects?status=Work In Progress' },
 ];
 
 export default function HeadDashboard() {
@@ -28,13 +29,9 @@ export default function HeadDashboard() {
         <div><h2>Dashboard</h2><div className="muted">Today · {fmtDate(d.today)}</div></div>
       </div>
 
-      <div className="cards three head-cards">
-        {CARDS.map(([k, label, Icon, color, to]) => (
-          <button key={k} className={`stat c-${color}`} onClick={() => jump(to)}>
-            <div className="stat-icon"><Icon size={20} /></div>
-            <div className="stat-val">{d.cards[k]}</div>
-            <div className="stat-label">{label}</div>
-          </button>
+      <div className="dcards">
+        {CARDS.map((c) => (
+          <StatCard key={c.k} title={c.title} value={d.cards[c.k]} icon={c.icon} trend={c.trend} desc={c.desc} color={c.color} bg={c.bg} onClick={() => jump(c.to)} />
         ))}
       </div>
 
