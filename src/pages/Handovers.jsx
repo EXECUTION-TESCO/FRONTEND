@@ -1,19 +1,19 @@
-// Execution Portal — Handovers received from the Sales Portal (ADDITIVE page).
-// The Execution team views submitted handovers, downloads attachments, and
-// Accepts / Rejects / Requests Changes. Shares the same records as the Sales Portal.
+// Execution Portal — Handovers received from the Sales Portal.
+// Simple inbox: the Sales team sends a handover, the Execution Head reviews it and
+// Accepts (→ a project is created under Projects) or Rejects it. No status tabs, no
+// manual project creation here — this screen is only for receiving & reviewing handovers.
 import { useEffect, useState } from 'react';
-import { FileStack, Search, Download, FileText, MessageSquarePlus, CheckCheck, Paperclip, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileStack, Search, Download, FileText, CheckCheck, Paperclip, Bell, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 import { api, qs, downloadFile, fmtDate, fmtDateTime } from '../api.js';
-import { Modal, Loader, ErrorBox, Empty, Field } from '../components/ui.jsx';
+import { useAuth } from '../auth.jsx';
+import { Modal, Loader, ErrorBox, Empty, Field, Badge } from '../components/ui.jsx';
 
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
-const STATUS_COLOR = { Submitted: 'blue', 'Under Review': 'amber', 'Changes Requested': 'orange', Accepted: 'green', Rejected: 'red', Draft: 'gray' };
-const St = ({ value }) => (value ? <span className={`badge b-${STATUS_COLOR[value] || 'gray'}`}>{value}</span> : null);
-const FILTERS = ['All', 'Submitted', 'Under Review', 'Changes Requested', 'Accepted', 'Rejected'];
 const KV = ({ k, v }) => (<div><div className="k">{k}</div><div className="v">{v || '—'}</div></div>);
+const isPending = (s) => s === 'Submitted' || s === 'Under Review';
 
 export default function Handovers() {
-  const [status, setStatus] = useState('All');
   const [q, setQ] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -23,20 +23,21 @@ export default function Handovers() {
 
   const loadList = () => {
     setLoading(true);
-    api(`/handovers${qs({ status: status === 'All' ? '' : status, q })}`)
+    api(`/handovers${qs({ q })}`)
       .then((d) => { setData(d); setError(''); }).catch((e) => setError(e.message)).finally(() => setLoading(false));
   };
   const loadNotif = () => api('/handovers/notifications').then(setNotif).catch(() => {});
-  useEffect(loadList, [status, q]); // eslint-disable-line
+  useEffect(loadList, [q]); // eslint-disable-line
   useEffect(() => { loadNotif(); const t = setInterval(loadNotif, 20000); return () => clearInterval(t); }, []);
 
   const markAllNotif = async () => { await api('/handovers/notifications/read-all', { method: 'POST' }).catch(() => {}); loadNotif(); };
   const list = data?.handovers || [];
+  const pendingCount = list.filter((h) => isPending(h.status)).length;
 
   return (
     <div>
       <div className="page-head">
-        <div><h2>Handovers {notif.unread > 0 && <span className="badge b-red">{notif.unread} new</span>}</h2><div className="muted">Project handovers received from the Sales team</div></div>
+        <div><h2>Handovers {pendingCount > 0 && <span className="badge b-red">{pendingCount} pending</span>}</h2><div className="muted">Project handovers received from the Sales team</div></div>
         {notif.unread > 0 && <button className="btn ghost" onClick={markAllNotif}><CheckCheck size={16} /> Mark all read</button>}
       </div>
 
@@ -51,18 +52,15 @@ export default function Handovers() {
       )}
 
       <div className="ho-toolbar">
-        <div className="tabs">
-          {FILTERS.map((f) => <button key={f} className={status === f ? 'active' : ''} onClick={() => setStatus(f)}>{f}</button>)}
-        </div>
         <div className="search"><Search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ref, project, client…" /></div>
       </div>
 
       {loading && !data ? <Loader /> : error ? <ErrorBox error={error} /> : list.length === 0 ? (
-        <Empty icon={FileStack} title="No handovers found">Handovers submitted by the Sales team will appear here.</Empty>
+        <Empty icon={FileStack} title="No handovers found">Handovers sent by the Sales team will appear here.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
-            <thead><tr><th>Reference</th><th>Project</th><th>Client</th><th>Value</th><th>From (Sales)</th><th>Status</th><th>Submitted</th></tr></thead>
+            <thead><tr><th>Reference</th><th>Project</th><th>Client</th><th>Value</th><th>From (Sales)</th><th>Status</th><th>Received</th></tr></thead>
             <tbody>
               {list.map((h) => (
                 <tr key={h.id} className="click" onClick={() => setSel(h.id)}>
@@ -71,8 +69,8 @@ export default function Handovers() {
                   <td data-label="Client">{h.clientName || '—'}</td>
                   <td data-label="Value">{inr(h.projectValue)}</td>
                   <td data-label="From (Sales)">{h.createdBy?.name || '—'}</td>
-                  <td data-label="Status"><St value={h.status} /></td>
-                  <td data-label="Submitted">{fmtDateTime(h.submittedAt)}</td>
+                  <td data-label="Status"><Badge value={h.status} /></td>
+                  <td data-label="Received">{fmtDateTime(h.submittedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -86,11 +84,13 @@ export default function Handovers() {
 }
 
 function HandoverModal({ id, onClose, onChanged }) {
+  const { isHead } = useAuth();
+  const nav = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [comment, setComment] = useState('');
   const [reason, setReason] = useState('');
+  const [done, setDone] = useState(null); // { status, projectId }
   const load = () => api(`/handovers/${id}`).then(setData).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [id]); // eslint-disable-line
 
@@ -98,28 +98,35 @@ function HandoverModal({ id, onClose, onChanged }) {
   if (!data) return <Modal title="Handover" onClose={onClose} wide><Loader /></Modal>;
   const h = data.handover;
   const d = h.details || {}, sc = h.scope || {}, tl = h.timeline || {}, pr = h.pricing || {};
-  const activity = data.activity || [];
-  const canReview = ['Submitted', 'Under Review'].includes(h.status);
+  const status = done?.status || h.status;
+  const canReview = isHead && isPending(status);
 
-  const review = async (action, needReason) => {
-    if (needReason && !reason.trim()) { setError(action === 'reject' ? 'Give a reason for rejecting' : 'Describe the changes needed'); return; }
+  const review = async (action) => {
+    if (action === 'reject' && !reason.trim()) { setError('Please give a reason for rejecting'); return; }
     setBusy(true); setError('');
-    try { await api(`/handovers/${id}/review`, { method: 'POST', body: { action, message: reason.trim() } }); setReason(''); await load(); onChanged(); }
-    catch (e) { setError(e.message); } finally { setBusy(false); }
-  };
-  const addComment = async () => {
-    if (!comment.trim()) return;
-    setBusy(true); setError('');
-    try { await api(`/handovers/${id}/comments`, { method: 'POST', body: { message: comment.trim() } }); setComment(''); await load(); onChanged(); }
-    catch (e) { setError(e.message); } finally { setBusy(false); }
+    try {
+      const res = await api(`/handovers/${id}/review`, { method: 'POST', body: { action, message: reason.trim() } });
+      setDone({ status: res.handover.status, projectId: res.projectId });
+      onChanged();
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
   const download = (a) => downloadFile(`/handovers/${id}/attachments/${a.fileId}?download=1`, a.filename).catch((e) => setError(e.message));
 
   return (
-    <Modal title={`${h.ref || 'Handover'} · ${h.project?.name || ''}`} onClose={onClose} wide>
+    <Modal title={`${h.ref || 'Handover'} · ${h.projectName || ''}`} onClose={onClose} wide>
       <div className="ho-modal">
-        <div style={{ marginBottom: 10 }}><St value={h.status} /> <span className="muted small">from {h.createdBy?.name} · submitted {fmtDateTime(h.submittedAt)}</span></div>
+        <div style={{ marginBottom: 10 }}><Badge value={status} /> <span className="muted small">from {h.createdBy?.name} · received {fmtDateTime(h.submittedAt)}</span></div>
         <ErrorBox error={error} />
+
+        {done && (
+          <div className={`panel ${done.status === 'Accepted' ? 'ok-box' : 'warn-box'}`} style={{ marginBottom: 12 }}>
+            {done.status === 'Accepted' ? (
+              <div><strong>Handover accepted.</strong> A project has been created under Projects.
+                <div style={{ marginTop: 8 }}><button className="btn primary sm" onClick={() => nav(done.projectId ? `/projects/${done.projectId}` : '/projects')}>Open in Projects <ArrowRight size={15} /></button></div>
+              </div>
+            ) : <div><strong>Handover rejected.</strong> It was not added to active projects.</div>}
+          </div>
+        )}
 
         <h4>1. Client &amp; Project Details</h4>
         <div className="kv">
@@ -172,41 +179,20 @@ function HandoverModal({ id, onClose, onChanged }) {
           </div>
         ))}
 
-        {canReview && (
+        {canReview && !done && (
           <div className="review-box">
-            <h4>Review</h4>
-            <Field label="Message to Sales (required to reject or request changes)">
-              <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason / changes needed…" />
+            <h4>Review this handover</h4>
+            <Field label="Reason (required only to reject)">
+              <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Add a note for the Sales team if rejecting…" />
             </Field>
             <div className="row-actions">
-              {h.status === 'Submitted' && <button className="btn" disabled={busy} onClick={() => review('start-review')}>Start Review</button>}
-              <button className="btn primary" disabled={busy} onClick={() => review('accept')}>Accept</button>
-              <button className="btn warn" disabled={busy} onClick={() => review('request-changes', true)}>Request Changes</button>
-              <button className="btn danger" disabled={busy} onClick={() => review('reject', true)}>Reject</button>
+              <button className="btn primary" disabled={busy} onClick={() => review('accept')}><CheckCircle2 size={16} /> Accept &amp; create project</button>
+              <button className="btn danger" disabled={busy} onClick={() => review('reject')}><XCircle size={16} /> Reject</button>
             </div>
           </div>
         )}
 
-        <h4>History & Comments</h4>
-        <div className="comment-box">
-          <textarea rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment for the Sales team…" />
-          <button className="btn ghost sm" disabled={busy || !comment.trim()} onClick={addComment}><MessageSquarePlus size={15} /> Post</button>
-        </div>
-        <div className="timeline" style={{ marginTop: 12 }}>
-          {activity.length === 0 && <div className="muted">No activity yet.</div>}
-          {activity.map((a) => (
-            <div key={a.id} className={`tl-item ${a.by?.portal === 'execution' ? 'exec' : ''}`}>
-              <div className="tl-dot" />
-              <div className="tl-body">
-                <div className="tl-top">
-                  <div className="tl-who">{a.by?.name || 'System'}<span className="side">{a.by?.portal === 'execution' ? 'Execution' : 'Sales'}</span></div>
-                  <div className="tl-time">{fmtDateTime(a.createdAt)}</div>
-                </div>
-                <div className="tl-msg">{a.type === 'status' && a.fromStatus ? <><St value={a.fromStatus} /> → <St value={a.toStatus} /><br /></> : null}{a.message}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {!isHead && isPending(status) && <div className="muted" style={{ marginTop: 12 }}>Only the Execution Head can accept or reject handovers.</div>}
       </div>
     </Modal>
   );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, FolderKanban, Pencil } from 'lucide-react';
+import { Search, FolderKanban, Pencil } from 'lucide-react';
 import { api, qs, fmtDate } from '../api.js';
 import { useApi } from '../hooks.js';
 import { Badge, Loader, ErrorBox, Empty, Progress } from '../components/ui.jsx';
@@ -25,8 +25,7 @@ export default function Projects() {
   return (
     <div>
       <div className="page-head">
-        <div><h2>Projects & Sites</h2><div className="muted">Assign, reassign and monitor every site</div></div>
-        <button className="btn primary" onClick={() => setEdit({})}><Plus size={18} /> Assign Project</button>
+        <div><h2>Projects & Sites</h2><div className="muted">Assign accepted handovers to the team and monitor every site</div></div>
       </div>
       <div className="filters">
         <div className="search"><Search size={16} /><input placeholder="Search project, client, location" value={q} onChange={(e) => setQ(e.target.value)} /></div>
@@ -40,7 +39,7 @@ export default function Projects() {
       </div>
       <ErrorBox error={error} />
       {loading && !data ? <Loader /> : data?.length === 0 ? (
-        <Empty icon={FolderKanban} title="No projects found">Try other filters, or assign a new project.</Empty>
+        <Empty icon={FolderKanban} title="No projects found">Projects appear here once the Execution Head accepts a handover from Sales.</Empty>
       ) : (
         <div className="panel no-pad">
           <div className="table-wrap">

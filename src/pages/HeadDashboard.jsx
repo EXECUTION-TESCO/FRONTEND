@@ -1,10 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { FolderKanban, CheckCircle2, Hammer, MapPinned, Eye, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { FolderKanban, CheckCircle2, Hammer, MapPinned, Eye, FileStack, ArrowRight } from 'lucide-react';
 import { useLiveApi as useApi } from '../hooks.js';
-import { fmtDate, fmtTime } from '../api.js';
+import { fmtDate, fmtDateTime, fmtTime } from '../api.js';
 import { Badge, Loader, ErrorBox, Empty, Progress } from '../components/ui.jsx';
-import ProjectForm from '../components/ProjectForm.jsx';
+
+const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
 const CARDS = [
   ['totalProjects', 'Total Projects', FolderKanban, 'navy', '/projects'],
@@ -13,19 +13,19 @@ const CARDS = [
 ];
 
 export default function HeadDashboard() {
-  const { data, error, loading, reload } = useApi('/dashboard');
-  const [showNew, setShowNew] = useState(false);
+  const { data, error, loading } = useApi('/dashboard');
+  const { data: hoData } = useApi('/handovers?status=Submitted');
   const nav = useNavigate();
   if (loading && !data) return <Loader />;
   if (error) return <ErrorBox error={error} />;
   const d = data;
   const jump = (to) => nav(to);
+  const pendingHandovers = hoData?.handovers || [];
 
   return (
     <div>
       <div className="page-head">
         <div><h2>Dashboard</h2><div className="muted">Today · {fmtDate(d.today)}</div></div>
-        <button className="btn primary" onClick={() => setShowNew(true)}><Plus size={18} /> Assign Project</button>
       </div>
 
       <div className="cards three head-cards">
@@ -37,6 +37,30 @@ export default function HeadDashboard() {
           </button>
         ))}
       </div>
+
+      {pendingHandovers.length > 0 && (
+        <section className="panel" id="handovers">
+          <div className="panel-head"><h3><FileStack size={18} /> Handovers from Sales — pending review ({pendingHandovers.length})</h3><Link to="/handovers" className="link">Open Handovers</Link></div>
+          <div className="table-wrap">
+            <table className="table responsive">
+              <thead><tr><th>Reference</th><th>Project</th><th>Client</th><th>Value</th><th>From (Sales)</th><th>Received</th><th>Action</th></tr></thead>
+              <tbody>
+                {pendingHandovers.map((h) => (
+                  <tr key={h.id} className="click" onClick={() => nav('/handovers')}>
+                    <td data-label="Reference"><strong>{h.ref || '—'}</strong></td>
+                    <td data-label="Project">{h.projectName || '—'}{h.details?.projectLocation && <div className="muted small">{h.details.projectLocation}</div>}</td>
+                    <td data-label="Client">{h.clientName || '—'}</td>
+                    <td data-label="Value">{inr(h.projectValue)}</td>
+                    <td data-label="From (Sales)">{h.createdBy?.name || '—'}</td>
+                    <td data-label="Received">{fmtDateTime(h.submittedAt)}</td>
+                    <td data-label="Action"><Link to="/handovers" className="btn ghost sm" onClick={(e) => e.stopPropagation()}>Review <ArrowRight size={15} /></Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="panel" id="today">
         <div className="panel-head"><h3>Today's Site Updates</h3><Link to={`/reports?date=${d.today}`} className="link">Open in Daily Reports</Link></div>
@@ -92,7 +116,7 @@ export default function HeadDashboard() {
       <section className="panel">
         <div className="panel-head"><h3>Latest Status of Every Project</h3><Link to="/projects" className="link">All projects</Link></div>
         {d.projects.length === 0 ? (
-          <Empty icon={FolderKanban} title="No projects yet"><button className="btn primary mt" onClick={() => setShowNew(true)}>Assign your first project</button></Empty>
+          <Empty icon={FolderKanban} title="No projects yet">Projects appear here once you accept a handover from Sales.</Empty>
         ) : (
           <div className="table-wrap">
             <table className="table responsive">
@@ -113,7 +137,6 @@ export default function HeadDashboard() {
           </div>
         )}
       </section>
-      {showNew && <ProjectForm onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); reload(); }} />}
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 const statusClass = {
   'Not Started': 'gray', 'Work In Progress': 'blue', 'On Hold': 'amber', 'Material Pending': 'orange', Completed: 'green', Delayed: 'red',
   Required: 'red', Ordered: 'amber', Delivered: 'green', Low: 'gray', Medium: 'blue', High: 'orange', Urgent: 'red',
+  // Handover statuses
+  Draft: 'gray', Submitted: 'blue', 'Under Review': 'amber', 'Changes Requested': 'orange', Accepted: 'green', Rejected: 'red',
 };
 
 export const Badge = ({ value, extra }) => (value ? <span className={`badge b-${statusClass[value] || 'gray'}`}>{value}{extra}</span> : null);

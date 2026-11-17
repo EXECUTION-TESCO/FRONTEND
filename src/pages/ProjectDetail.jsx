@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle } from 'lucide-react';
-import { api, fmtDate, fmtDateTime, fmtTime } from '../api.js';
+import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download } from 'lucide-react';
+import { api, downloadFile, fmtDate, fmtDateTime, fmtTime } from '../api.js';
 import { useLiveApi as useApi } from '../hooks.js';
 import { useAuth } from '../auth.jsx';
 import { Badge, Loader, ErrorBox, Progress, Empty } from '../components/ui.jsx';
@@ -23,6 +23,7 @@ export default function ProjectDetail() {
   const { project: p, reports, comments, assignmentHistory } = data;
 
   const changeStatus = async (status) => { await api(`/projects/${p.id}/status`, { method: 'PATCH', body: { status } }); reload(); };
+  const downloadAtt = (a) => downloadFile(`/projects/${p.id}/attachments/${a.fileId}?download=1`, a.filename).catch(() => {});
   const send = async (e) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -63,9 +64,23 @@ export default function ProjectDetail() {
             <div><span>Start Date</span>{fmtDate(p.startDate)}</div>
             <div><span>Expected Completion</span>{fmtDate(p.expectedDate)}</div>
             <div><span>Total Updates</span>{p.reportCount}</div>
+            {p.handoverRef && <div><span>From Sales Handover</span>{p.handoverRef}</div>}
+            {p.assignedAt && <div><span>Assigned On</span>{fmtDate(p.assignedAt)}</div>}
           </div>
           <div className="block"><h4>Scope of Work</h4><p className="pre">{p.scope || <span className="muted">Not specified</span>}</p></div>
           <div className="block instructions"><h4>Work Instructions</h4><p className="pre">{p.instructions || <span className="muted">No instructions</span>}</p></div>
+          {(p.handoverAttachments?.length > 0) && (
+            <div className="block">
+              <h4>Handover Attachments</h4>
+              {p.handoverAttachments.map((a) => (
+                <div className="att" key={a.fileId}>
+                  <div className="att-ic"><FileText size={16} /></div>
+                  <div className="att-main"><div className="att-name">{a.filename}</div></div>
+                  <div className="att-act"><button className="btn ghost xs" onClick={() => downloadAtt(a)}><Download size={14} /> Download</button></div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="panel">
