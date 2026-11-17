@@ -115,7 +115,7 @@ function HandoverModal({ id, onClose, onChanged }) {
 
   return (
     <Modal title={`${h.ref || 'Handover'} · ${h.projectName || ''}`} onClose={onClose} wide>
-      <div className="ho-modal">
+      <div className="ho-modal" style={{ paddingBottom: 18 }}>
         <div style={{ marginBottom: 10 }}><Badge value={status} /> <span className="muted small">from {h.createdBy?.name} · received {fmtDateTime(h.submittedAt)}</span></div>
         <ErrorBox error={error} />
 
