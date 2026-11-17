@@ -38,6 +38,7 @@ export default function WorkSchedule({ project, onSaved }) {
     revision: ws0.revision || 'R0',
     scopeOfWork: ws0.scopeOfWork || project.scope || '',
     startDate: ws0.startDate || project.startDate || '',
+    completion: ws0.completion || '',
     activities: (ws0.activities && ws0.activities.length ? ws0.activities : [blankRow()]).map((a) => ({ ...blankRow(), ...a })),
     notes: ws0.notes && ws0.notes.length ? ws0.notes : [...DEFAULT_NOTES],
   });
@@ -47,7 +48,7 @@ export default function WorkSchedule({ project, onSaved }) {
 
   const rows = useMemo(() => f.activities.map((a) => ({ ...a, days: workingDays(a.start, a.end), remarks: a.remarks || (a.start && a.end ? `${wdOf(a.start)} – ${wdOf(a.end)}` : '') })), [f.activities]);
   const totalDays = rows.reduce((s, r) => s + r.days, 0);
-  const completion = rows.map((r) => r.end).filter(Boolean).sort().slice(-1)[0] || '';
+  const completion = f.completion || rows.map((r) => r.end).filter(Boolean).sort().slice(-1)[0] || '';
   const startAll = f.startDate || rows.map((r) => r.start).filter(Boolean).sort()[0] || '';
 
   const setRow = (i, k, v) => setF((s) => ({ ...s, activities: s.activities.map((a, j) => (j === i ? { ...a, [k]: v } : a)) }));
@@ -87,6 +88,7 @@ export default function WorkSchedule({ project, onSaved }) {
         <L label="Date of Issue"><input type="date" value={f.dateOfIssue} onChange={(e) => set('dateOfIssue', e.target.value)} /></L>
         <L label="Revision"><input value={f.revision} onChange={(e) => set('revision', e.target.value)} /></L>
         <L label="Start Date"><input type="date" value={f.startDate} onChange={(e) => set('startDate', e.target.value)} /></L>
+        <L label="Completion (auto from last activity if blank)"><input type="date" value={f.completion} onChange={(e) => set('completion', e.target.value)} /></L>
       </div>
 
       <div className="section-head"><h4><CalendarRange size={16} /> Schedule of Activities</h4><button className="btn ghost sm" onClick={addRow}><Plus size={14} /> Add activity</button></div>
@@ -173,27 +175,28 @@ function buildHTML(project, f, rows, { totalDays, completion, startAll }) {
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2430;font-size:11px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .doc{max-width:760px;margin:0 auto}
-  .lh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #6fae1f;padding-bottom:10px}
+  .lh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #4bb41b;padding-bottom:10px}
   .lh img{height:40px}
   .lh .r{text-align:right}
   .lh .r b{letter-spacing:.32em;font-size:13px;color:#2b3340}
   .lh .r span{display:block;font-style:italic;color:#7a8696;font-size:10px;letter-spacing:.04em}
-  .titlebar{background:#5f6f2a;color:#fff;padding:12px 16px;margin-top:14px;border-radius:3px}
+  .titlebar{background:#555555;color:#fff;padding:12px 16px;margin-top:14px;border-radius:3px}
   .titlebar h1{font-size:16px;letter-spacing:.02em}
   .titlebar div{font-size:10.5px;opacity:.9;margin-top:2px}
   .sec-title{letter-spacing:.28em;font-size:10px;font-weight:700;color:#3b4350;margin:16px 0 7px}
   table{width:100%;border-collapse:collapse}
   .info td{border:1px solid #d9dee6;padding:7px 9px;vertical-align:top}
   .info .k{background:#f2f4f7;font-weight:700;color:#55606f;width:120px;font-size:9.5px;letter-spacing:.02em;text-transform:uppercase}
-  .acts th{background:#6fae1f;color:#fff;padding:7px 9px;text-align:left;font-size:9.5px;letter-spacing:.03em;text-transform:uppercase}
-  .acts th.num,.acts td.days,.acts td.c{text-align:center}
+  .acts th{background:#555555;color:#fff;padding:7px 9px;text-align:left;font-size:9.5px;letter-spacing:.03em;text-transform:uppercase}
+  .acts th.r{text-align:right}
+  .acts td.c,.acts td.days,.acts td.rm{text-align:right}
   .acts td{border-bottom:1px solid #e6eaf0;padding:7px 9px;vertical-align:top}
   .acts tr:nth-child(even) td{background:#f7f9fb}
   .acts .sno{text-align:center;color:#8893a3}
   .acts .act{font-weight:700}
-  .acts .days{font-weight:700;color:#5f8c14}
+  .acts .days{font-weight:700;color:#4bb41b}
   .acts .rm{color:#8893a3;font-size:10px}
-  .acts .total td{background:#6fae1f;color:#fff;font-weight:700;border:none;padding:8px 9px}
+  .acts .total td{background:#4bb41b;color:#fff;font-weight:700;border:none;padding:8px 9px}
   .acts .total .days{color:#fff}
   .tl-wrap{overflow:hidden}
   .tl{table-layout:fixed}
@@ -203,13 +206,13 @@ function buildHTML(project, f, rows, { totalDays, completion, startAll }) {
   .tl thead th.sun{background:#e4e7ec}
   .tl .tl-first{width:92px;background:#eef1f5}
   .tl tbody th{text-align:left;font-size:8.5px;padding:4px 6px;background:#f7f9fb;color:#333;font-weight:600}
-  .tl td.c-work{background:#6fae1f}
+  .tl td.c-work{background:#4bb41b}
   .tl td.c-sun{background:#dfe3e8}
   .legend{display:flex;gap:18px;margin-top:6px;font-size:9px;color:#55606f}
   .legend i{display:inline-block;width:12px;height:10px;border-radius:2px;vertical-align:middle;margin-right:5px}
-  .legend .lg-work{background:#6fae1f}.legend .lg-sun{background:#dfe3e8;border:1px solid #cfd5dd}
+  .legend .lg-work{background:#4bb41b}.legend .lg-sun{background:#dfe3e8;border:1px solid #cfd5dd}
   .notes li{list-style:none;position:relative;padding-left:16px;margin-bottom:5px;color:#37404d}
-  .notes li:before{content:"";position:absolute;left:0;top:4px;width:7px;height:7px;background:#6fae1f;border-radius:2px}
+  .notes li:before{content:"";position:absolute;left:0;top:4px;width:7px;height:7px;background:#4bb41b;border-radius:2px}
   .foot{display:flex;justify-content:space-between;border-top:1px solid #d9dee6;margin-top:22px;padding-top:9px;color:#8893a3;font-size:9px;line-height:1.5}
   .foot b{color:#55606f}
   @media screen{body{background:#eef1f5;padding:20px}.doc{background:#fff;padding:26px 30px;box-shadow:0 6px 30px rgba(0,0,0,.12)}}
@@ -226,7 +229,7 @@ function buildHTML(project, f, rows, { totalDays, completion, startAll }) {
     <tr><td class="k">Start Date</td><td>${startAll ? esc(fmtDMY(startAll) + ' (' + wdOf(startAll) + ')') : ''}</td><td class="k">Completion</td><td>${completion ? esc(fmtDMY(completion) + ' (' + wdOf(completion) + ')') : ''}</td></tr>
   </tbody></table>
   <div class="sec-title">SCHEDULE OF ACTIVITIES</div>
-  <table class="acts"><thead><tr><th>S.No</th><th>Activity</th><th>Description / Scope</th><th>Start</th><th>End</th><th class="num">Days</th><th>Remarks</th></tr></thead>
+  <table class="acts"><thead><tr><th>S.No</th><th>Activity</th><th>Description / Scope</th><th class="r">Start</th><th class="r">End</th><th class="r">Days</th><th class="r">Remarks</th></tr></thead>
     <tbody>${activityRows}<tr class="total"><td colspan="5">TOTAL DURATION</td><td class="days">${totalDays}</td><td>WORKING DAYS</td></tr></tbody></table>
   ${timeline}
   <div class="sec-title">NOTES &amp; CONDITIONS</div>
