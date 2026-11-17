@@ -60,7 +60,25 @@ export default function Projects() {
                     <td data-label="Project"><strong>{p.name}</strong>{p.location && <div className="muted small">{p.location}</div>}</td>
                     <td data-label="Client">{p.client || '—'}</td>
                     <td data-label="Assign Engineer" onClick={(e) => e.stopPropagation()}>
-                      <select className="assign-select" value={p.engineerId || ''} disabled={assigning === p.id} onChange={(e) => assign(p.id, e.target.value)}>
+                      <select
+                        className="assign-select"
+                        value={p.engineerId || ''}
+                        disabled={assigning === p.id}
+                        onChange={(e) => assign(p.id, e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: 999,
+                          border: `1.5px solid ${p.engineerId ? '#16a34a' : '#d97706'}`,
+                          background: p.engineerId ? '#dcfce7' : '#fef3c7',
+                          color: p.engineerId ? '#166534' : '#92400e',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          maxWidth: 180,
+                          outline: 'none',
+                          opacity: assigning === p.id ? 0.6 : 1,
+                        }}
+                      >
                         <option value="">— Unassigned —</option>
                         {engineers.filter((en) => en.active !== false).map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
                       </select>
