@@ -41,16 +41,6 @@ export default function Handovers() {
         {notif.unread > 0 && <button className="btn ghost" onClick={markAllNotif}><CheckCheck size={16} /> Mark all read</button>}
       </div>
 
-      {notif.items.filter((n) => !n.read).slice(0, 3).length > 0 && (
-        <div className="panel" style={{ marginBottom: 14 }}>
-          <ul className="list">
-            {notif.items.filter((n) => !n.read).slice(0, 3).map((n) => (
-              <li key={n.id}><div><Bell size={14} /> <strong>{n.title}</strong><div className="small muted">{n.message}</div></div></li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <div className="ho-toolbar">
         <div className="search"><Search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ref, project, client…" /></div>
       </div>

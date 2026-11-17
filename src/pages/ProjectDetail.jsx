@@ -11,6 +11,7 @@ const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const KV = ({ k, v }) => (<div><div className="k">{k}</div><div className="v">{v || '—'}</div></div>);
 import ProjectForm from '../components/ProjectForm.jsx';
 import PhotoGrid from '../components/PhotoGrid.jsx';
+import WorkSchedule from '../components/WorkSchedule.jsx';
 
 const STATUSES = ['Not Started', 'Work In Progress', 'On Hold', 'Material Pending', 'Completed', 'Delayed'];
 
@@ -111,6 +112,7 @@ export default function ProjectDetail() {
         <button className={tab === 'updates' ? 'active' : ''} onClick={() => setTab('updates')}>Daily Updates ({reports.length})</button>
         <button className={tab === 'photos' ? 'active' : ''} onClick={() => setTab('photos')}>Site Photos ({reports.reduce((s, r) => s + r.photos.length, 0)})</button>
         {isHead && <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Assignment History</button>}
+        {isHead && <button className={tab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}>Work Schedule</button>}
       </div>
 
       {tab === 'updates' && (reports.length === 0 ? <Empty icon={CalendarDays} title="No daily updates yet" /> : (
@@ -147,6 +149,8 @@ export default function ProjectDetail() {
           )}
         </div>
       )}
+
+      {tab === 'schedule' && isHead && <WorkSchedule project={p} onSaved={reload} />}
 
       {edit && <ProjectForm project={p} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); reload(); }} />}
       {showHo && p.handoverId && <HandoverFormModal handoverId={p.handoverId} onClose={() => setShowHo(false)} />}
