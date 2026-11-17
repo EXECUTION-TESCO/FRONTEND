@@ -4,7 +4,7 @@
 // manual project creation here — this screen is only for receiving & reviewing handovers.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileStack, Search, Download, FileText, CheckCheck, Paperclip, Bell, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { FileStack, Search, Download, FileText, CheckCheck, Paperclip, Bell, CheckCircle2, XCircle, ArrowRight, Eye } from 'lucide-react';
 import { api, qs, downloadFile, fmtDate, fmtDateTime } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Modal, Loader, ErrorBox, Empty, Field, Badge } from '../components/ui.jsx';
@@ -60,7 +60,7 @@ export default function Handovers() {
       ) : (
         <div className="table-wrap">
           <table className="table responsive">
-            <thead><tr><th>Reference</th><th>Project</th><th>Client</th><th>Value</th><th>From (Sales)</th><th>Status</th><th>Received</th></tr></thead>
+            <thead><tr><th>Reference</th><th>Project</th><th>Client</th><th>Value</th><th>From (Sales)</th><th>Status</th><th>Received</th><th>Action</th></tr></thead>
             <tbody>
               {list.map((h) => (
                 <tr key={h.id} className="click" onClick={() => setSel(h.id)}>
@@ -71,6 +71,7 @@ export default function Handovers() {
                   <td data-label="From (Sales)">{h.createdBy?.name || '—'}</td>
                   <td data-label="Status"><Badge value={h.status} /></td>
                   <td data-label="Received">{fmtDateTime(h.submittedAt)}</td>
+                  <td data-label="Action"><button className="btn ghost sm" onClick={(e) => { e.stopPropagation(); setSel(h.id); }}><Eye size={15} /> View</button></td>
                 </tr>
               ))}
             </tbody>
