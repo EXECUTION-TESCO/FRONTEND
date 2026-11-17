@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { LayoutDashboard, FolderKanban, Users, FileText, Bell, LogOut, PlusCircle, UserCircle } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, FileText, FileStack, Bell, LogOut, PlusCircle, UserCircle } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { timeAgo } from '../api.js';
 import { NotificationsProvider, useNotifications } from '../notifications.jsx';
@@ -58,12 +58,14 @@ function Shell({ children }) {
         { to: '/projects', icon: FolderKanban, label: 'Projects' },
         { to: '/engineers', icon: Users, label: 'Team & Logins' },
         { to: '/reports', icon: FileText, label: 'Daily Reports' },
+        { to: '/handovers', icon: FileStack, label: 'Handovers' },
         { to: '/account', icon: UserCircle, label: 'Account', mobileOnly: true },
       ]
     : [
         { to: '/', icon: LayoutDashboard, label: 'My Sites', end: true },
         { to: '/submit', icon: PlusCircle, label: 'Submit Update' },
         { to: '/reports', icon: FileText, label: 'My Updates' },
+        { to: '/handovers', icon: FileStack, label: 'Handovers' },
         { to: '/notifications', icon: Bell, label: 'Alerts' },
         { logout: true, icon: LogOut, label: 'Logout', mobileOnly: true },
       ];

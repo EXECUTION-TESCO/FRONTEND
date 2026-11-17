@@ -12,6 +12,7 @@ import EngineerHome from './pages/EngineerHome.jsx';
 import SubmitUpdate from './pages/SubmitUpdate.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Account from './pages/Account.jsx';
+import Handovers from './pages/Handovers.jsx';
 
 export default function App() {
   const { user, loading, isHead } = useAuth();
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/reports/:id" element={<ReportPage />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/handovers" element={<Handovers />} />
         {isHead && <Route path="/account" element={<Account />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
