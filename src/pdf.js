@@ -1,22 +1,21 @@
-// Daily Updates PDF builder (Phase 3).
-// Lazy-loads jsPDF from a CDN the first time it's needed, so no build dependency is added.
+// Daily Updates PDF builder (Phase 3) — Tesco Structures branded, green theme.
+// jsPDF is bundled (code-split) so it loads on first use and never depends on a CDN.
 // Site photos are fetched through the same token URL the app already uses and embedded.
 import { photoUrl, fmtDate, fmtDateTime } from './api.js';
 
 let jsPDFPromise = null;
 
 // Load jsPDF from the bundled npm package (code-split, so it only downloads on first use).
-// No CDN — works offline and is never blocked by a browser extension or CSP.
 function loadJsPDF() {
   if (!jsPDFPromise) {
     jsPDFPromise = import('jspdf')
       .then((mod) => mod.jsPDF || (mod.default && mod.default.jsPDF) || mod.default)
-      .catch((e) => { jsPDFPromise = null; throw new Error('Could not start the PDF engine. Please reload the page and try again.'); });
+      .catch(() => { jsPDFPromise = null; throw new Error('Could not start the PDF engine. Please reload the page and try again.'); });
   }
   return jsPDFPromise;
 }
 
-// Fetch one photo and return { dataUrl, w, h, fmt } or null on any failure (never throws).
+// Fetch an image (photo or the logo) and return { dataUrl, w, h, fmt } or null (never throws).
 async function fetchImage(url) {
   try {
     const res = await fetch(url);
@@ -40,107 +39,165 @@ const ROWS = [
   ['remarks', 'Remarks'],
 ];
 
-const NAVY = [30, 27, 75];      // #1e1b4b
-const ACCENT = [79, 70, 229];   // #4f46e5
-const MUTED = [100, 116, 139];  // #64748b
-const LINE = [226, 232, 240];   // #e2e8f0
+// ---- Tesco Structures brand palette (green) ----
+const GREEN = [108, 190, 44];    // #6CBE2C  bright brand green (logo)
+const GREEN_D = [47, 107, 18];   // #2F6B12  deep green (bands / headings)
+const GREEN_L = [238, 247, 230]; // #EEF7E6  light green tint (cards)
+const INK = [31, 41, 55];        // #1F2937
+const MUTED = [100, 116, 139];   // #64748B
+const LINE = [222, 231, 210];    // soft green-grey rule
 
-// Build and download a Daily Updates PDF for a project.
-// reports: array of report objects (as returned by the API). Sorted oldest→newest in the PDF.
+let LOGO = undefined; // cached logo image (fetched once per session)
+
+// Build and download a branded Daily Updates PDF for a project.
 export async function downloadDailyUpdatesPdf(project, reports, { filename } = {}) {
   const JsPDF = await loadJsPDF();
+  if (LOGO === undefined) LOGO = await fetchImage('/tescologo2.png'); // Tesco Structures wordmark
   const doc = new JsPDF({ unit: 'pt', format: 'a4' });
   const PW = doc.internal.pageSize.getWidth();
   const PH = doc.internal.pageSize.getHeight();
-  const M = 40;                       // page margin
-  const CW = PW - M * 2;              // content width
+  const M = 40;
+  const CW = PW - M * 2;
   let y = M;
 
-  const footer = () => {
-    const n = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= n; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8); doc.setTextColor(...MUTED);
-      doc.text('Tesco Structures — Project Daily Updates', M, PH - 18);
-      doc.text(`Page ${i} of ${n}`, PW - M, PH - 18, { align: 'right' });
-    }
-  };
-  const ensure = (need) => { if (y + need > PH - M) { doc.addPage(); y = M; } };
-  const text = (str, opts = {}) => {
-    const { size = 10, color = [15, 23, 42], bold = false, gap = 4, indent = 0 } = opts;
+  const ensure = (need) => { if (y + need > PH - 54) { doc.addPage(); y = M; } };
+  const para = (str, opts = {}) => {
+    const { size = 10, color = INK, bold = false, gap = 4, indent = 0 } = opts;
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
     doc.setFontSize(size); doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(String(str), CW - indent);
+    const lines = doc.splitTextToSize(String(str == null ? '' : str), CW - indent);
     for (const ln of lines) { ensure(size + gap); doc.text(ln, M + indent, y + size); y += size + gap; }
   };
 
-  // ---- Cover header ----
-  doc.setFillColor(...NAVY); doc.rect(0, 0, PW, 86, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
-  doc.text(project.name || 'Project', M, 40);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(210, 214, 240);
-  const sub = [project.client, project.location].filter(Boolean).join('  ·  ');
-  if (sub) doc.text(sub, M, 58);
-  doc.text(`Daily Updates${project.handoverRef ? '  ·  ' + project.handoverRef : ''}  ·  ${reports.length} update(s)`, M, 73);
-  y = 104;
-  doc.setFontSize(9); doc.setTextColor(...MUTED);
-  doc.text(`Generated ${fmtDateTime(new Date().toISOString())}`, M, y); y += 18;
-
   const sorted = [...reports].sort((a, b) => String(a.reportDate).localeCompare(String(b.reportDate)) || String(a.createdAt).localeCompare(String(b.createdAt)));
+  const dates = sorted.map((r) => (r.reportDate || '').slice(0, 10)).filter(Boolean);
+  const period = dates.length ? (dates[0] === dates[dates.length - 1] ? fmtDate(dates[0]) : `${fmtDate(dates[0])}  →  ${fmtDate(dates[dates.length - 1])}`) : '—';
+  const preparedBy = [...new Set(sorted.map((r) => r.engineerName).filter(Boolean))].join(', ') || '—';
+  const location = project.location || (sorted.find((r) => r.siteLocation) || {}).siteLocation || '';
 
+  // ---------- Header: logo + title ----------
+  if (LOGO) {
+    const lw = 150, lh = Math.min(lw * (LOGO.h / LOGO.w), 48);
+    try { doc.addImage(LOGO.dataUrl, LOGO.fmt, M, y, lw, lh); } catch { /* ignore */ }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...GREEN_D);
+    doc.text('DAILY PROGRESS REPORT', PW - M, y + 14, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
+    doc.text('Execution Management', PW - M, y + 28, { align: 'right' });
+    doc.text(`Generated ${fmtDateTime(new Date().toISOString())}`, PW - M, y + 40, { align: 'right' });
+    y += Math.max(lh, 42) + 10;
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...GREEN_D);
+    doc.text('TESCO STRUCTURES', M, y + 16);
+    doc.setFontSize(11); doc.text('DAILY PROGRESS REPORT', PW - M, y + 16, { align: 'right' });
+    y += 34;
+  }
+  // Green brand rule
+  doc.setDrawColor(...GREEN); doc.setLineWidth(2); doc.line(M, y, PW - M, y); doc.setLineWidth(1);
+  y += 14;
+
+  // ---------- Project info card ----------
+  const infoRows = [
+    ['Client', project.client || '—'],
+    ['Location', location || '—'],
+    ['Handover Ref', project.handoverRef || '—'],
+    ['Reporting Period', period],
+    ['Total Updates', String(reports.length)],
+    ['Prepared By', preparedBy],
+  ];
+  const cardPadX = 14, cardTop = y;
+  const titleH = 24, rowH = 15, cols = 2, rowsPerCol = Math.ceil(infoRows.length / cols);
+  const cardH = titleH + rowsPerCol * rowH + 12;
+  doc.setFillColor(...GREEN_L); doc.setDrawColor(...LINE);
+  doc.roundedRect(M, cardTop, CW, cardH, 4, 4, 'FD');
+  doc.setFillColor(...GREEN_D); doc.rect(M, cardTop, 4, cardH, 'F'); // deep-green accent spine
+  // Project name
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...GREEN_D);
+  doc.text(String(project.name || 'Project'), M + cardPadX, cardTop + 18);
+  // Info grid
+  const colW = (CW - cardPadX * 2) / cols;
+  doc.setFontSize(9);
+  infoRows.forEach((pair, i) => {
+    const c = Math.floor(i / rowsPerCol), rr = i % rowsPerCol;
+    const x = M + cardPadX + c * colW;
+    const ry = cardTop + titleH + rr * rowH + 8;
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(...MUTED);
+    doc.text(pair[0].toUpperCase(), x, ry);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...INK);
+    doc.text(doc.splitTextToSize(String(pair[1]), colW - 96)[0] || '—', x + 96, ry);
+  });
+  y = cardTop + cardH + 16;
+
+  // ---------- Section heading ----------
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...GREEN_D);
+  doc.text('SITE PROGRESS UPDATES', M, y); y += 6;
+  doc.setDrawColor(...LINE); doc.line(M, y, PW - M, y); y += 14;
+
+  // ---------- Each daily update ----------
   for (const r of sorted) {
-    ensure(60);
-    // Date band
-    doc.setFillColor(238, 242, 255); doc.setDrawColor(...LINE);
+    ensure(64);
     const bandY = y;
-    doc.roundedRect(M, bandY, CW, 24, 3, 3, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...NAVY);
-    doc.text(fmtDate(r.reportDate), M + 8, bandY + 16);
+    doc.setFillColor(...GREEN_L); doc.setDrawColor(...LINE);
+    doc.roundedRect(M, bandY, CW, 26, 3, 3, 'FD');
+    doc.setFillColor(...GREEN); doc.rect(M, bandY, 4, 26, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.setTextColor(...GREEN_D);
+    doc.text(fmtDate(r.reportDate), M + 12, bandY + 17);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...MUTED);
-    const metaRight = [r.engineerName, r.projectStatus, (r.progressPercent != null ? r.progressPercent + '%' : null)].filter(Boolean).join('  ·  ');
-    doc.text(metaRight, PW - M - 8, bandY + 16, { align: 'right' });
-    y = bandY + 34;
+    const metaRight = [r.engineerName, r.projectStatus, (r.progressPercent != null ? r.progressPercent + '% complete' : null)].filter(Boolean).join('   ·   ');
+    doc.text(metaRight, PW - M - 10, bandY + 17, { align: 'right' });
+    y = bandY + 36;
 
     let any = false;
     for (const [k, label] of ROWS) {
       const v = r[k];
       if (!v) continue;
       any = true;
-      text(label, { size: 9, color: ACCENT, bold: true, gap: 2 });
+      para(label.toUpperCase(), { size: 8.5, color: GREEN_D, bold: true, gap: 2 });
       let val = String(v);
-      if (k === 'materialRequired' && r.materialStatus) val += `  [${r.materialStatus}]`;
-      text(val, { size: 10, gap: 4, indent: 2 });
-      y += 2;
+      if (k === 'materialRequired' && r.materialStatus) val += `   [${r.materialStatus}]`;
+      para(val, { size: 10, gap: 4, indent: 2 });
+      y += 3;
     }
-    if (!any) text('No written details for this update.', { size: 10, color: MUTED });
+    if (!any) para('No written details recorded for this update.', { size: 10, color: MUTED });
 
     // Photos (2 per row)
     const photos = r.photos || [];
     if (photos.length) {
       y += 4;
-      text(`Site Photos (${photos.length})`, { size: 9, color: ACCENT, bold: true, gap: 4 });
+      para(`SITE PHOTOS (${photos.length})`, { size: 8.5, color: GREEN_D, bold: true, gap: 5 });
       const imgs = [];
       for (const p of photos) { const im = await fetchImage(photoUrl(r.id, p.id)); if (im) imgs.push(im); }
-      const gap = 10, cols = 2;
-      const cellW = (CW - gap * (cols - 1)) / cols;
-      let col = 0, rowH = 0, rowTop = y;
+      const gap = 10, colsP = 2;
+      const cellW = (CW - gap * (colsP - 1)) / colsP;
+      let col = 0, rowTop = y, rowH2 = 0;
       for (const im of imgs) {
         const h = Math.min(cellW * (im.h / im.w), 150);
-        if (col === 0) { ensure(h + gap); rowTop = y; rowH = 0; }
+        if (col === 0) { ensure(h + gap); rowTop = y; rowH2 = 0; }
         const x = M + col * (cellW + gap);
-        try { doc.addImage(im.dataUrl, im.fmt, x, rowTop, cellW, h); } catch { /* skip bad image */ }
-        rowH = Math.max(rowH, h);
+        doc.setDrawColor(...LINE); doc.rect(x, rowTop, cellW, h);
+        try { doc.addImage(im.dataUrl, im.fmt, x, rowTop, cellW, h); } catch { /* skip */ }
+        rowH2 = Math.max(rowH2, h);
         col++;
-        if (col === cols) { y = rowTop + rowH + gap; col = 0; }
+        if (col === colsP) { y = rowTop + rowH2 + gap; col = 0; }
       }
-      if (col !== 0) y = rowTop + rowH + gap;
+      if (col !== 0) y = rowTop + rowH2 + gap;
     }
-    y += 10;
+    y += 12;
     ensure(1);
-    doc.setDrawColor(...LINE); doc.line(M, y, PW - M, y); y += 12;
+    doc.setDrawColor(...LINE); doc.line(M, y, PW - M, y); y += 14;
   }
 
-  footer();
+  // ---------- Footer on every page ----------
+  const n = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(...GREEN); doc.setLineWidth(1.5); doc.line(M, PH - 32, PW - M, PH - 32); doc.setLineWidth(1);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...GREEN_D);
+    doc.text('TESCO STRUCTURES', M, PH - 18);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
+    doc.text('Execution Management · Confidential', M + 112, PH - 18);
+    doc.text(`Page ${i} of ${n}`, PW - M, PH - 18, { align: 'right' });
+  }
+
   const name = filename || `${(project.name || 'project').replace(/[^\w.-]+/g, '_')}_daily_updates.pdf`;
   doc.save(name);
 }
