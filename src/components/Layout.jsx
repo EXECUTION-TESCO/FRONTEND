@@ -52,6 +52,7 @@ export default function Layout({ children }) {
 
 function Shell({ children }) {
   const { user, isHead, logout } = useAuth();
+  const [askLogout, setAskLogout] = useState(false);
   const links = isHead
     ? [
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -89,7 +90,7 @@ function Shell({ children }) {
             <div className="avatar">{user.name[0]}</div>
             <div><div className="who-name">{user.name}</div><div className="who-role">{isHead ? 'Execution Head' : 'Execution Team'}</div></div>
           </div>
-          <button className="side-link logout" onClick={logout}><LogOut size={18} /> Logout</button>
+          <button className="side-link logout" onClick={() => setAskLogout(true)}><LogOut size={18} /> Logout</button>
         </div>
       </aside>
       <div className="main">
@@ -107,7 +108,7 @@ function Shell({ children }) {
       </div>
       <nav className="bottom-nav">
         {links.map((l) => (l.logout ? (
-          <button key="logout" className="bn-link" onClick={logout}>
+          <button key="logout" className="bn-link" onClick={() => setAskLogout(true)}>
             <l.icon size={20} />
             <span>{l.label}</span>
           </button>
@@ -118,6 +119,20 @@ function Shell({ children }) {
           </NavLink>
         )))}
       </nav>
+
+      {askLogout && (
+        <div className="modal-bg" style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onMouseDown={(e) => { if (e.target === e.currentTarget) setAskLogout(false); }}>
+          <div role="dialog" aria-modal="true" style={{ background: '#fff', borderRadius: 14, padding: '24px 24px 20px', width: 'min(92vw, 380px)', boxShadow: '0 20px 50px rgba(0,0,0,.25)', textAlign: 'center' }}>
+            <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}><LogOut size={22} /></div>
+            <h3 style={{ margin: '0 0 6px', color: '#1e1b4b' }}>Log out?</h3>
+            <p style={{ margin: '0 0 18px', color: '#64748b', fontSize: 14 }}>Are you sure you want to log out of the Execution portal?</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button className="btn ghost" onClick={() => setAskLogout(false)}>Cancel</button>
+              <button className="btn primary" onClick={() => { setAskLogout(false); logout(); }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

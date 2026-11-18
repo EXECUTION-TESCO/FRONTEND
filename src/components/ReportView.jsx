@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, User, CalendarDays, MessageSquare, ArrowRight, FileDown } from 'lucide-react';
+import { MapPin, User, Building2, CalendarDays, MessageSquare, ArrowRight, FileDown } from 'lucide-react';
 import { api, fmtDate, fmtDateTime, fmtTime } from '../api.js';
 import { downloadDailyUpdatesPdf } from '../pdf.js';
 import { useAuth } from '../auth.jsx';
@@ -28,8 +28,9 @@ export default function ReportView({ data, onChange }) {
   const downloadPdf = async () => {
     setPdfBusy(true); setPdfErr('');
     try {
+      const proj = data.project || {};
       await downloadDailyUpdatesPdf(
-        { name: r.projectName, location: r.siteLocation },
+        { name: r.projectName, client: proj.client || r.client || '', location: proj.location || r.siteLocation || '', handoverRef: proj.handoverRef || '' },
         [r],
         { filename: `${(r.projectName || 'update').replace(/[^\w.-]+/g, '_')}_${(r.reportDate || '').slice(0, 10)}.pdf` },
       );
@@ -55,6 +56,7 @@ export default function ReportView({ data, onChange }) {
           <Link to={`/projects/${r.projectId}`} className="rv-title">{r.projectName}</Link>
           <div className="meta-row">
             <span><User size={14} /> {r.engineerName}</span>
+            {(data.project?.client || r.client) && <span><Building2 size={14} /> {data.project?.client || r.client}</span>}
             <span><CalendarDays size={14} /> {fmtDate(r.reportDate)} · {fmtTime(r.createdAt)}</span>
             {r.siteLocation && <span><MapPin size={14} /> {r.siteLocation}</span>}
           </div>

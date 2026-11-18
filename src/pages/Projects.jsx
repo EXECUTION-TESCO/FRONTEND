@@ -53,7 +53,7 @@ export default function Projects() {
         <div className="panel no-pad">
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr><th>Project</th><th>Client</th><th>Assign Engineer</th><th>Priority</th><th>Status</th><th>Progress</th><th>Last Update</th><th>Due</th><th /></tr></thead>
+              <thead><tr><th>Project</th><th>Client</th><th>Assign Engineer</th><th>Priority</th><th>Status</th><th>Progress</th><th>Work Schedule</th><th>Last Update</th><th>Due</th><th /></tr></thead>
               <tbody>
                 {data?.map((p) => (
                   <tr key={p.id} className="click" onClick={() => nav(`/projects/${p.id}`)}>
@@ -86,6 +86,13 @@ export default function Projects() {
                     <td data-label="Priority"><Badge value={p.priority} /></td>
                     <td data-label="Status"><Badge value={p.status} />{p.overdue && p.status !== 'Delayed' && <Badge value="Delayed" extra=" (overdue)" />}</td>
                     <td data-label="Progress"><Progress value={p.progressPercent} /></td>
+                    <td data-label="Work Schedule">{(() => {
+                      const ws = p.workSchedule;
+                      const acts = ws && Array.isArray(ws.activities) ? ws.activities.filter((a) => a && a.activity) : [];
+                      if (!acts.length) return <span className="muted small">Not set</span>;
+                      const end = ws.completion || acts.map((a) => a.end).filter(Boolean).sort().slice(-1)[0];
+                      return <span className="ok small">✓ {acts.length} activit{acts.length > 1 ? 'ies' : 'y'}{end ? ` · ${fmtDate(end)}` : ''}</span>;
+                    })()}</td>
                     <td data-label="Last Update">{p.updatedToday ? <span className="ok">Today</span> : fmtDate(p.lastReportDate)}</td>
                     <td data-label="Due">{fmtDate(p.expectedDate)}</td>
                     <td data-label=""><button className="btn ghost sm" onClick={(e) => { e.stopPropagation(); setEdit(p); }}><Pencil size={14} /> Edit</button></td>

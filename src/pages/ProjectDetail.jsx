@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download, Trash2, Plus, ListChecks, RefreshCw, FileDown } from 'lucide-react';
+import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download, Trash2, Plus, ListChecks, RefreshCw, FileDown, ArrowLeft } from 'lucide-react';
 import { api, downloadFile, fmtDate, fmtDateTime, fmtTime } from '../api.js';
 import { downloadDailyUpdatesPdf } from '../pdf.js';
 import { useLiveApi as useApi } from '../hooks.js';
@@ -41,7 +41,7 @@ export default function ProjectDetail() {
     <div>
       <div className="page-head">
         <div>
-          <div className="crumb"><Link to={isHead ? '/projects' : '/'}>{isHead ? 'Projects' : 'My Sites'}</Link> /</div>
+          <Link to={isHead ? '/projects' : '/'} className="btn ghost sm" style={{ marginBottom: 8 }}><ArrowLeft size={15} /> Back to {isHead ? 'Projects' : 'My Sites'}</Link>
           <h2>{p.name}</h2>
           <div className="meta-row">
             {p.client && <span><Building2 size={14} /> {p.client}</span>}
@@ -339,6 +339,11 @@ function DailyTasks({ project, isHead, userId, onChanged }) {
           <button className="btn primary" disabled={busy} onClick={addTask}><Plus size={16} /> Add</button>
         </div>
       )}
+      {isHead && (
+        <div style={{ marginBottom: 14 }}>
+          <Field label="Description (optional)" full><textarea rows={2} value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} placeholder="Add any detail or instructions for this task…" /></Field>
+        </div>
+      )}
 
       {visible.length === 0 ? (
         <Empty icon={ListChecks} title={isHead ? 'No tasks yet' : 'No tasks assigned to you'} />
@@ -417,6 +422,7 @@ function HandoverFormModal({ handoverId, onClose }) {
           <KV k="Alternate Mobile" v={d.alternateMobile} /><KV k="GST Number" v={d.gstNumber} />
           <KV k="Email / WhatsApp" v={d.emailWhatsapp} /><KV k="Salesperson" v={d.salespersonName} />
           <KV k="Date of Order" v={fmtDate(d.dateOfOrder)} /><KV k="Proposal Ref No" v={d.proposalRefNo} />
+          <KV k="Location Map" v={d.mapLink ? <a href={d.mapLink} target="_blank" rel="noreferrer">Open map ↗</a> : '—'} />
           <div className="full"><KV k="Site Address" v={d.siteAddress} /></div>
           <div className="full"><KV k="Billing Address" v={d.billingAddress} /></div>
         </div>

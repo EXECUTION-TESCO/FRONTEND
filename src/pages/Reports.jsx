@@ -85,12 +85,13 @@ export default function Reports() {
           <div className="panel-head pad"><h3>{fmtDate(g.date)}</h3><span className="muted small">{g.items.length} update(s)</span></div>
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr>{isHead && <th>Engineer</th>}<th>Site</th><th>Today's Work</th><th>Tomorrow</th><th>Material</th><th>Status</th><th>Photos</th></tr></thead>
+              <thead><tr>{isHead && <th>Engineer</th>}<th>Site</th><th>Client</th><th>Today's Work</th><th>Tomorrow</th><th>Material</th><th>Status</th><th>Photos</th></tr></thead>
               <tbody>
                 {g.items.map((r) => (
                   <tr key={r.id} className="click" onClick={() => nav(`/reports/${r.id}`)}>
                     {isHead && <td data-label="Engineer"><strong>{r.engineerName}</strong><div className="muted small">{fmtTime(r.createdAt)}</div></td>}
                     <td data-label="Site"><Link to={`/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>{r.projectName}</Link>{!isHead && <div className="muted small">{fmtTime(r.createdAt)}</div>}</td>
+                    <td data-label="Client">{r.client || '—'}</td>
                     <td data-label="Today's Work" className="wrap">{r.todayProgress || r.workCompleted}</td>
                     <td data-label="Tomorrow" className="wrap">{r.tomorrowPlan || '—'}</td>
                     <td data-label="Material">{r.materialRequired ? <>{r.materialRequired} <Badge value={r.materialStatus} /></> : '—'}</td>
