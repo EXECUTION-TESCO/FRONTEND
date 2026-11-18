@@ -62,7 +62,7 @@ export async function downloadDailyUpdatesPdf(project, reports, { filename } = {
 
   const ensure = (need) => { if (y + need > PH - 54) { doc.addPage(); y = M; } };
   const para = (str, opts = {}) => {
-    const { size = 10, color = INK, bold = false, gap = 4, indent = 0 } = opts;
+    const { size = 10, color = INK, bold = false, gap = 6, indent = 0 } = opts;
     doc.setFont('helvetica', bold ? 'bold' : 'normal');
     doc.setFontSize(size); doc.setTextColor(...color);
     const lines = doc.splitTextToSize(String(str == null ? '' : str), CW - indent);
@@ -104,33 +104,34 @@ export async function downloadDailyUpdatesPdf(project, reports, { filename } = {
     ['Total Updates', String(reports.length)],
     ['Prepared By', preparedBy],
   ];
-  const cardPadX = 14, cardTop = y;
-  const titleH = 24, rowH = 15, cols = 2, rowsPerCol = Math.ceil(infoRows.length / cols);
-  const cardH = titleH + rowsPerCol * rowH + 12;
+  const cardPadX = 18, cardTop = y;
+  const titleH = 30, rowH = 19, cols = 2, rowsPerCol = Math.ceil(infoRows.length / cols);
+  const cardH = titleH + rowsPerCol * rowH + 14;
   doc.setFillColor(...GREEN_L); doc.setDrawColor(...LINE);
   doc.roundedRect(M, cardTop, CW, cardH, 4, 4, 'FD');
   doc.setFillColor(...GREEN_D); doc.rect(M, cardTop, 4, cardH, 'F'); // deep-green accent spine
   // Project name
   doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...GREEN_D);
-  doc.text(String(project.name || 'Project'), M + cardPadX, cardTop + 18);
-  // Info grid
+  doc.text(String(project.name || 'Project'), M + cardPadX, cardTop + 20);
+  // Info grid — generous label column so values never crowd the labels
   const colW = (CW - cardPadX * 2) / cols;
+  const labelW = 118;
   doc.setFontSize(9);
   infoRows.forEach((pair, i) => {
     const c = Math.floor(i / rowsPerCol), rr = i % rowsPerCol;
     const x = M + cardPadX + c * colW;
-    const ry = cardTop + titleH + rr * rowH + 8;
+    const ry = cardTop + titleH + rr * rowH + 4;
     doc.setFont('helvetica', 'bold'); doc.setTextColor(...MUTED);
     doc.text(pair[0].toUpperCase(), x, ry);
     doc.setFont('helvetica', 'normal'); doc.setTextColor(...INK);
-    doc.text(doc.splitTextToSize(String(pair[1]), colW - 96)[0] || '—', x + 96, ry);
+    doc.text(doc.splitTextToSize(String(pair[1]), colW - labelW - 6)[0] || '—', x + labelW, ry);
   });
-  y = cardTop + cardH + 16;
+  y = cardTop + cardH + 22;
 
   // ---------- Section heading ----------
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...GREEN_D);
-  doc.text('SITE PROGRESS UPDATES', M, y); y += 6;
-  doc.setDrawColor(...LINE); doc.line(M, y, PW - M, y); y += 14;
+  doc.text('SITE PROGRESS UPDATES', M, y); y += 8;
+  doc.setDrawColor(...LINE); doc.line(M, y, PW - M, y); y += 16;
 
   // ---------- Each daily update ----------
   for (const r of sorted) {
@@ -151,11 +152,11 @@ export async function downloadDailyUpdatesPdf(project, reports, { filename } = {
       const v = r[k];
       if (!v) continue;
       any = true;
-      para(label.toUpperCase(), { size: 8.5, color: GREEN_D, bold: true, gap: 2 });
+      para(label.toUpperCase(), { size: 8.5, color: GREEN_D, bold: true, gap: 3 });
       let val = String(v);
       if (k === 'materialRequired' && r.materialStatus) val += `   [${r.materialStatus}]`;
-      para(val, { size: 10, gap: 4, indent: 2 });
-      y += 3;
+      para(val, { size: 10, gap: 5, indent: 2 });
+      y += 6;
     }
     if (!any) para('No written details recorded for this update.', { size: 10, color: MUTED });
 

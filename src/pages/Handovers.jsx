@@ -178,7 +178,7 @@ function HandoverModal({ id, onClose, onChanged }) {
             <Field label="Reason (required only to reject)">
               <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Add a note for the Sales team if rejecting…" />
             </Field>
-            <div className="row-actions">
+            <div className="row-actions" style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button className="btn primary" disabled={busy} onClick={() => review('accept')}><CheckCircle2 size={16} /> Accept &amp; create project</button>
               <button className="btn danger" disabled={busy} onClick={() => review('reject')}><XCircle size={16} /> Reject</button>
             </div>

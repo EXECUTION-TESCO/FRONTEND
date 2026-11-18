@@ -356,10 +356,10 @@ function DailyTasks({ project, isHead, userId, onChanged }) {
             return (
               <div className="task-row" key={t.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{t.title}</div>
-                  {t.details && <div className="muted small">{t.details}</div>}
-                  <div className="muted small" style={{ marginTop: 2 }}>
-                    <User size={12} /> {t.assigneeName || 'Unassigned'}
+                  <div style={{ fontWeight: 700, color: '#1e293b' }}>{t.title}</div>
+                  {t.details && <div className="small" style={{ color: '#334155', marginTop: 2 }}>{t.details}</div>}
+                  <div className="small" style={{ marginTop: 4, color: '#475569' }}>
+                    <User size={12} /> <strong style={{ color: '#334155' }}>{t.assigneeName || 'Unassigned'}</strong>
                     {t.dueDate && <> · due {fmtDate(t.dueDate)} {overdue && <Badge value="Overdue" />}</>}
                     {(t.reassignHistory || []).length > 0 && <> · <button className="link small" onClick={() => setHistFor(histFor === t.id ? null : t.id)}>reassigned {t.reassignHistory.length}×</button></>}
                   </div>
