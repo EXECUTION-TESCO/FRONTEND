@@ -3,20 +3,15 @@
 // Site photos are fetched through the same token URL the app already uses and embedded.
 import { photoUrl, fmtDate, fmtDateTime } from './api.js';
 
-const JSPDF_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
 let jsPDFPromise = null;
 
+// Load jsPDF from the bundled npm package (code-split, so it only downloads on first use).
+// No CDN — works offline and is never blocked by a browser extension or CSP.
 function loadJsPDF() {
-  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
   if (!jsPDFPromise) {
-    jsPDFPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = JSPDF_SRC;
-      s.async = true;
-      s.onload = () => (window.jspdf && window.jspdf.jsPDF ? resolve(window.jspdf.jsPDF) : reject(new Error('PDF engine failed to initialise')));
-      s.onerror = () => { jsPDFPromise = null; reject(new Error('Could not load the PDF engine — check your internet connection and try again.')); };
-      document.head.appendChild(s);
-    });
+    jsPDFPromise = import('jspdf')
+      .then((mod) => mod.jsPDF || (mod.default && mod.default.jsPDF) || mod.default)
+      .catch((e) => { jsPDFPromise = null; throw new Error('Could not start the PDF engine. Please reload the page and try again.'); });
   }
   return jsPDFPromise;
 }
