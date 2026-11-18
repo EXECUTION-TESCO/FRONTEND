@@ -7,7 +7,9 @@ const statusClass = {
   // Handover statuses
   Draft: 'gray', Submitted: 'blue', 'Under Review': 'amber', 'Changes Requested': 'orange', Accepted: 'green', Rejected: 'red',
   // Task statuses
-  'In Progress': 'blue', Overdue: 'red',
+  'In Progress': 'blue', Overdue: 'red', 'To Do': 'gray', Done: 'green',
+  // Material request statuses
+  Requested: 'amber',
 };
 
 export const Badge = ({ value, extra }) => (value ? <span className={`badge b-${statusClass[value] || 'gray'}`}>{value}{extra}</span> : null);

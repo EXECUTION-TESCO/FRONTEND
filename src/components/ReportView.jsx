@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, User, CalendarDays, MessageSquare, ArrowRight } from 'lucide-react';
+import { MapPin, User, CalendarDays, MessageSquare, ArrowRight, FileDown } from 'lucide-react';
 import { api, fmtDate, fmtDateTime, fmtTime } from '../api.js';
+import { downloadDailyUpdatesPdf } from '../pdf.js';
 import { useAuth } from '../auth.jsx';
 import { Badge, Progress } from './ui.jsx';
 import PhotoGrid, { DownloadAll } from './PhotoGrid.jsx';
@@ -21,6 +22,19 @@ export default function ReportView({ data, onChange }) {
   const [compare, setCompare] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfErr, setPdfErr] = useState('');
+
+  const downloadPdf = async () => {
+    setPdfBusy(true); setPdfErr('');
+    try {
+      await downloadDailyUpdatesPdf(
+        { name: r.projectName, location: r.siteLocation },
+        [r],
+        { filename: `${(r.projectName || 'update').replace(/[^\w.-]+/g, '_')}_${(r.reportDate || '').slice(0, 10)}.pdf` },
+      );
+    } catch (e) { setPdfErr(e.message); } finally { setPdfBusy(false); }
+  };
 
   const setMaterial = async (materialStatus) => {
     await api(`/reports/${r.id}/material`, { method: 'PATCH', body: { materialStatus } });
@@ -48,8 +62,10 @@ export default function ReportView({ data, onChange }) {
         <div className="rv-status">
           <Badge value={r.projectStatus} />
           {r.progressPercent != null && <Progress value={r.progressPercent} />}
+          <button className="btn ghost sm" disabled={pdfBusy} onClick={downloadPdf}><FileDown size={15} /> {pdfBusy ? 'Preparing…' : 'Download PDF'}</button>
         </div>
       </div>
+      {pdfErr && <div className="alert error" style={{ marginTop: 8 }}>{pdfErr}</div>}
 
       {prev && (
         <div className="compare-toggle">

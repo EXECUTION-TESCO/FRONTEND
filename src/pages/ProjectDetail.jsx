@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useEffect } from 'react';
-import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download } from 'lucide-react';
+import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download, Trash2, Plus, ListChecks, RefreshCw, FileDown } from 'lucide-react';
 import { api, downloadFile, fmtDate, fmtDateTime, fmtTime } from '../api.js';
+import { downloadDailyUpdatesPdf } from '../pdf.js';
 import { useLiveApi as useApi } from '../hooks.js';
 import { useAuth } from '../auth.jsx';
-import { Badge, Loader, ErrorBox, Progress, Empty, Modal } from '../components/ui.jsx';
+import { Badge, Loader, ErrorBox, Progress, Empty, Modal, Field } from '../components/ui.jsx';
 
 const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const KV = ({ k, v }) => (<div><div className="k">{k}</div><div className="v">{v || '—'}</div></div>);
@@ -17,7 +17,7 @@ const STATUSES = ['Not Started', 'Work In Progress', 'On Hold', 'Material Pendin
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const { isHead } = useAuth();
+  const { isHead, user } = useAuth();
   const { data, error, loading, reload } = useApi(`/projects/${id}`);
   const [edit, setEdit] = useState(false);
   const [tab, setTab] = useState('updates');
@@ -66,6 +66,8 @@ export default function ProjectDetail() {
               {p.overdue && <div className="small danger mt-xs">Past expected completion date</div>}
             </div>
             <div><span>Priority</span><Badge value={p.priority} /></div>
+            <div><span>Total Value</span>{p.projectValue ? inr(p.projectValue) : <span className="muted">—</span>}</div>
+            {(p.length > 0 || p.width > 0) && <div><span>Dimensions</span>{p.length || '—'} × {p.width || '—'} {p.unit || 'ft'}</div>}
             <div><span>Progress</span><Progress value={p.progressPercent} /></div>
             <div><span>Start Date</span>{fmtDate(p.startDate)}</div>
             <div><span>Expected Completion</span>{fmtDate(p.expectedDate)}</div>
@@ -111,6 +113,9 @@ export default function ProjectDetail() {
       <div className="tabs">
         <button className={tab === 'updates' ? 'active' : ''} onClick={() => setTab('updates')}>Daily Updates ({reports.length})</button>
         <button className={tab === 'photos' ? 'active' : ''} onClick={() => setTab('photos')}>Site Photos ({reports.reduce((s, r) => s + r.photos.length, 0)})</button>
+        <button className={tab === 'tasks' ? 'active' : ''} onClick={() => setTab('tasks')}>Daily Tasks ({isHead ? (p.dailyTasks || []).length : (p.dailyTasks || []).filter((t) => t.assigneeId === user?.id).length})</button>
+        <button className={tab === 'materials' ? 'active' : ''} onClick={() => setTab('materials')}>Materials</button>
+        <button className={tab === 'phistory' ? 'active' : ''} onClick={() => setTab('phistory')}>Project History</button>
         {isHead && <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Assignment History</button>}
         {isHead && <button className={tab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}>Work Schedule</button>}
       </div>
@@ -150,10 +155,238 @@ export default function ProjectDetail() {
         </div>
       )}
 
+      {tab === 'tasks' && <DailyTasks project={p} isHead={isHead} userId={user?.id} onChanged={reload} />}
+
+      {tab === 'materials' && <Materials project={p} isHead={isHead} userId={user?.id} />}
+
+      {tab === 'phistory' && <ProjectHistory project={p} reports={reports} />}
+
       {tab === 'schedule' && isHead && <WorkSchedule project={p} onSaved={reload} />}
 
       {edit && <ProjectForm project={p} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); reload(); }} />}
       {showHo && p.handoverId && <HandoverFormModal handoverId={p.handoverId} onClose={() => setShowHo(false)} />}
+    </div>
+  );
+}
+
+// Date-wise Project History (Phase 3): daily updates grouped by calendar date, newest first,
+// with a one-click Daily Updates PDF (whole project or a single day) including site photos.
+function ProjectHistory({ project, reports }) {
+  const [busy, setBusy] = useState('');   // '' | 'all' | a reportDate
+  const [err, setErr] = useState('');
+
+  const groups = useMemo(() => {
+    const m = new Map();
+    for (const r of reports) { const d = (r.reportDate || '').slice(0, 10); if (!m.has(d)) m.set(d, []); m.get(d).push(r); }
+    return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0])); // newest date first
+  }, [reports]);
+
+  const dl = async (key, list, filename) => {
+    setBusy(key); setErr('');
+    try { await downloadDailyUpdatesPdf(project, list, filename ? { filename } : undefined); }
+    catch (e) { setErr(e.message); } finally { setBusy(''); }
+  };
+
+  if (!reports.length) return <Empty icon={CalendarDays} title="No daily updates yet" >The project history builds up as the team submits daily updates.</Empty>;
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h3><History size={18} /> Project History <span className="muted small">· {reports.length} update(s) over {groups.length} day(s)</span></h3>
+        <button className="btn primary sm" disabled={!!busy} onClick={() => dl('all', reports)}>
+          <FileDown size={16} /> {busy === 'all' ? 'Preparing…' : 'Download PDF'}
+        </button>
+      </div>
+      <ErrorBox error={err} />
+      <div className="history-dates">
+        {groups.map(([date, list]) => {
+          const photos = list.reduce((s, r) => s + (r.photos?.length || 0), 0);
+          return (
+            <div className="hist-day" key={date} style={{ marginBottom: 16 }}>
+              <div className="panel-head" style={{ borderBottom: '2px solid var(--line, #e2e8f0)', paddingBottom: 6, marginBottom: 8 }}>
+                <h4 style={{ margin: 0 }}><CalendarDays size={15} /> {fmtDate(date)} <span className="muted small">· {list.length} update{list.length > 1 ? 's' : ''}{photos ? ` · 📷 ${photos}` : ''}</span></h4>
+                <button className="btn ghost xs" disabled={!!busy} onClick={() => dl(date, list, `${(project.name || 'project').replace(/[^\w.-]+/g, '_')}_${date}.pdf`)}>
+                  <FileDown size={13} /> {busy === date ? 'Preparing…' : 'PDF'}
+                </button>
+              </div>
+              {list.map((r) => (
+                <Link to={`/reports/${r.id}`} key={r.id} className="tl-item" style={{ display: 'block' }}>
+                  <div className="tl-body">
+                    <div className="tl-top"><span>{r.engineerName}</span><Badge value={r.projectStatus} />{r.progressPercent != null && <span className="chip">{r.progressPercent}%</span>}{r.photos?.length > 0 && <span className="chip">📷 {r.photos.length}</span>}<span className="muted small">{fmtTime(r.createdAt)}</span></div>
+                    <div>{r.todayProgress || r.workCompleted || <span className="muted">No written details</span>}</div>
+                    {r.tomorrowPlan && <div className="small muted">Tomorrow: {r.tomorrowPlan}</div>}
+                    {r.materialRequired && <div className="small">Material: {r.materialRequired} <Badge value={r.materialStatus} /></div>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Material Requirements (Phase 4): raise material needs to the Procurement Portal and
+// watch the status (Requested → Ordered → Delivered / Rejected) come back live.
+function Materials({ project, isHead, userId }) {
+  const pid = project.id;
+  const canRaise = isHead || project.engineerId === userId;
+  const [list, setList] = useState(null);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '' });
+
+  const load = () => api(`/materials?projectId=${pid}`).then((d) => setList(d.requests || [])).catch((e) => setErr(e.message));
+  useEffect(() => { load(); api('/materials/seen', { method: 'PATCH' }).catch(() => {}); }, [pid]); // eslint-disable-line
+
+  const raise = async () => {
+    if (!form.material.trim()) { setErr('Enter the material / item name'); return; }
+    setBusy(true); setErr('');
+    try { await api('/materials', { method: 'POST', body: { projectId: pid, ...form } }); setForm({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '' }); await load(); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const withdraw = async (m) => { if (!window.confirm(`Withdraw the request for "${m.material}"?`)) return; try { await api(`/materials/${m.id}`, { method: 'DELETE' }); await load(); } catch (e) { setErr(e.message); } };
+
+  return (
+    <div className="panel">
+      <div className="panel-head"><h3><FileText size={18} /> Material Requirements <span className="muted small">· to Procurement</span></h3></div>
+      <ErrorBox error={err} />
+
+      {canRaise && (
+        <div className="task-add" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.7fr 0.7fr 1fr auto', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+          <Field label="Material / item *"><input value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} placeholder="e.g. PU insulated roof sheet" /></Field>
+          <Field label="Specification"><input value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="e.g. 40mm, Blue" /></Field>
+          <Field label="Qty"><input type="number" min="0" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} /></Field>
+          <Field label="Unit"><input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="nos / sqft" /></Field>
+          <Field label="Needed by"><input type="date" value={form.neededBy} onChange={(e) => setForm({ ...form, neededBy: e.target.value })} /></Field>
+          <button className="btn primary" disabled={busy} onClick={raise}><Plus size={16} /> Request</button>
+        </div>
+      )}
+      {canRaise && <Field label="Notes (optional)" full><input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Any detail for the purchase team" /></Field>}
+
+      {list === null ? <Loader /> : list.length === 0 ? (
+        <Empty icon={FileText} title="No material requirements yet" >{canRaise ? 'Raise one above — it goes straight to the Procurement team.' : 'Nothing requested for this project yet.'}</Empty>
+      ) : (
+        <div className="table-wrap" style={{ marginTop: 10 }}>
+          <table className="table">
+            <thead><tr><th>Ref</th><th>Material</th><th className="num">Qty</th><th>Needed by</th><th>Status</th><th>PO</th><th></th></tr></thead>
+            <tbody>
+              {list.map((m) => (
+                <tr key={m.id}>
+                  <td className="small muted">{m.ref || '—'}</td>
+                  <td><div style={{ fontWeight: 600 }}>{m.material}</div>{m.spec && <div className="muted small">{m.spec}</div>}{m.status === 'Rejected' && m.rejectReason && <div className="small danger">Rejected: {m.rejectReason}</div>}{m.notes && <div className="muted small">{m.notes}</div>}</td>
+                  <td className="num">{m.qty || '—'} {m.unit}</td>
+                  <td>{m.neededBy ? fmtDate(m.neededBy) : '—'}</td>
+                  <td><Badge value={m.status} /></td>
+                  <td className="small">{m.poRef || '—'}</td>
+                  <td>{m.status === 'Requested' && (isHead || (m.createdBy && m.createdBy.id) === userId) && <button className="btn ghost xs danger" onClick={() => withdraw(m)} title="Withdraw"><Trash2 size={14} /></button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const TASK_STATUSES = ['To Do', 'In Progress', 'Done'];
+
+// Daily Tasks (Phase 2): the Head assigns tasks to team members; members mark their own done.
+function DailyTasks({ project, isHead, userId, onChanged }) {
+  const pid = project.id;
+  const tasks = project.dailyTasks || [];
+  const [engineers, setEngineers] = useState([]);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ title: '', assigneeId: '', dueDate: '', details: '' });
+  const [reassigning, setReassigning] = useState(null); // taskId currently showing the reassign picker
+  const [histFor, setHistFor] = useState(null);
+
+  useEffect(() => { if (isHead) api('/users?role=engineer').then((l) => setEngineers(l.filter((e) => e.active))).catch(() => {}); }, [isHead]);
+
+  const run = async (fn) => { setBusy(true); setErr(''); try { await fn(); onChanged(); } catch (e) { setErr(e.message); } finally { setBusy(false); } };
+  const addTask = () => {
+    if (!form.title.trim()) { setErr('Enter a task title'); return; }
+    if (!form.assigneeId) { setErr('Choose a team member to assign the task to'); return; }
+    run(async () => { await api(`/projects/${pid}/tasks`, { method: 'POST', body: form }); setForm({ title: '', assigneeId: '', dueDate: '', details: '' }); });
+  };
+  const setStatus = (t, status) => run(async () => { await api(`/projects/${pid}/tasks/${t.id}/status`, { method: 'PATCH', body: { status } }); });
+  const reassign = (t, assigneeId) => { if (!assigneeId || assigneeId === t.assigneeId) { setReassigning(null); return; } run(async () => { await api(`/projects/${pid}/tasks/${t.id}/reassign`, { method: 'POST', body: { assigneeId } }); setReassigning(null); }); };
+  const del = (t) => { if (!window.confirm(`Delete task "${t.title}"?`)) return; run(async () => { await api(`/projects/${pid}/tasks/${t.id}`, { method: 'DELETE' }); }); };
+
+  const visible = isHead ? tasks : tasks.filter((t) => t.assigneeId === userId);
+  const done = tasks.filter((t) => t.status === 'Done').length;
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h3><ListChecks size={18} /> Daily Tasks {tasks.length > 0 && <span className="muted small">· {done}/{tasks.length} done</span>}</h3>
+      </div>
+      <ErrorBox error={err} />
+
+      {isHead && (
+        <div className="task-add" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+          <Field label="New task"><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Complete column footing" /></Field>
+          <Field label="Assign to">
+            <select value={form.assigneeId} onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}>
+              <option value="">— Select member —</option>
+              {engineers.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Due date"><input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></Field>
+          <button className="btn primary" disabled={busy} onClick={addTask}><Plus size={16} /> Add</button>
+        </div>
+      )}
+
+      {visible.length === 0 ? (
+        <Empty icon={ListChecks} title={isHead ? 'No tasks yet' : 'No tasks assigned to you'} />
+      ) : (
+        <div className="task-list">
+          {visible.map((t) => {
+            const mine = t.assigneeId === userId;
+            const canStatus = isHead || mine;
+            const overdue = t.dueDate && t.status !== 'Done' && t.dueDate < new Date().toISOString().slice(0, 10);
+            return (
+              <div className="task-row" key={t.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid var(--line, #e2e8f0)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{t.title}</div>
+                  {t.details && <div className="muted small">{t.details}</div>}
+                  <div className="muted small" style={{ marginTop: 2 }}>
+                    <User size={12} /> {t.assigneeName || 'Unassigned'}
+                    {t.dueDate && <> · due {fmtDate(t.dueDate)} {overdue && <Badge value="Overdue" />}</>}
+                    {(t.reassignHistory || []).length > 0 && <> · <button className="link small" onClick={() => setHistFor(histFor === t.id ? null : t.id)}>reassigned {t.reassignHistory.length}×</button></>}
+                  </div>
+                  {histFor === t.id && (
+                    <ul className="list small" style={{ marginTop: 6 }}>
+                      {t.reassignHistory.map((h, i) => (
+                        <li key={i}><span><RefreshCw size={12} /> {h.fromName || 'Unassigned'} → <strong>{h.toName}</strong></span><span className="muted small">{fmtDateTime(h.at)}{h.byName && ` by ${h.byName}`}</span></li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {canStatus ? (
+                    <select value={t.status} disabled={busy} onChange={(e) => setStatus(t, e.target.value)} className={`status-select b-${t.status === 'Done' ? 'green' : t.status === 'In Progress' ? 'blue' : 'gray'}`}>
+                      {TASK_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  ) : <Badge value={t.status} />}
+                  {isHead && (reassigning === t.id ? (
+                    <select autoFocus disabled={busy} defaultValue="" onChange={(e) => reassign(t, e.target.value)} onBlur={() => setReassigning(null)}>
+                      <option value="">Move to…</option>
+                      {engineers.filter((e) => e.id !== t.assigneeId).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    </select>
+                  ) : (
+                    <button className="btn ghost xs" disabled={busy} onClick={() => setReassigning(t.id)} title="Reassign"><RefreshCw size={14} /> Reassign</button>
+                  ))}
+                  {isHead && <button className="btn ghost xs danger" disabled={busy} onClick={() => del(t)} title="Delete"><Trash2 size={14} /></button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

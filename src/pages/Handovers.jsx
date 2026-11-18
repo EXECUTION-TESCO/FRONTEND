@@ -134,6 +134,7 @@ function HandoverModal({ id, onClose, onChanged }) {
         <h4>2. Scope of Work</h4>
         <div className="kv">
           <KV k="Type of Project" v={sc.typeOfProject} /><KV k="Project Size / Area" v={sc.projectSizeArea} />
+          <KV k="Length" v={sc.length ? `${sc.length} ${sc.unit || 'ft'}` : '—'} /><KV k="Width" v={sc.width ? `${sc.width} ${sc.unit || 'ft'}` : '—'} />
           <KV k="Design" v={[sc.design3D && '3D', sc.design2D && '2D'].filter(Boolean).join(' + ') || 'None'} />
           <KV k="Transportation — Client Scope" v={sc.transportationClientScope} />
           <KV k="Scaffolding — Client Scope" v={sc.scaffoldingClientScope} />
