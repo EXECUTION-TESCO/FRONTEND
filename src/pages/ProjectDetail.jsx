@@ -228,7 +228,7 @@ function ProjectHistory({ project, reports }) {
 }
 
 // Material Requirements (Phase 4): raise material needs to the Procurement Portal and
-// watch the status (Requested → Ordered → Delivered / Rejected) come back live.
+// watch the status (Pending Approval → Approved → PO Created / Rejected) come back live.
 function Materials({ project, isHead, userId }) {
   const pid = project.id;
   const canRaise = isHead || project.engineerId === userId;
@@ -238,7 +238,12 @@ function Materials({ project, isHead, userId }) {
   const [form, setForm] = useState({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '' });
 
   const load = () => api(`/materials?projectId=${pid}`).then((d) => setList(d.requests || [])).catch((e) => setErr(e.message));
-  useEffect(() => { load(); api('/materials/seen', { method: 'PATCH' }).catch(() => {}); }, [pid]); // eslint-disable-line
+  // Load + poll so Procurement decisions (approve / reject / PO) appear without a manual refresh.
+  useEffect(() => {
+    load(); api('/materials/seen', { method: 'PATCH' }).catch(() => {});
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, [pid]); // eslint-disable-line
 
   const raise = async () => {
     if (!form.material.trim()) { setErr('Enter the material / item name'); return; }
@@ -280,7 +285,7 @@ function Materials({ project, isHead, userId }) {
                   <td>{m.neededBy ? fmtDate(m.neededBy) : '—'}</td>
                   <td><Badge value={m.status} /></td>
                   <td className="small">{m.poRef || '—'}</td>
-                  <td>{m.status === 'Requested' && (isHead || (m.createdBy && m.createdBy.id) === userId) && <button className="btn ghost xs danger" onClick={() => withdraw(m)} title="Withdraw"><Trash2 size={14} /></button>}</td>
+                  <td>{m.status === 'Pending Approval' && (isHead || (m.createdBy && m.createdBy.id) === userId) && <button className="btn ghost xs danger" onClick={() => withdraw(m)} title="Withdraw"><Trash2 size={14} /></button>}</td>
                 </tr>
               ))}
             </tbody>

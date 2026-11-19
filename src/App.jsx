@@ -14,6 +14,7 @@ import Notifications from './pages/Notifications.jsx';
 import Account from './pages/Account.jsx';
 import Handovers from './pages/Handovers.jsx';
 import WorkSchedulePage from './pages/WorkSchedulePage.jsx';
+import MaterialRequests from './pages/MaterialRequests.jsx';
 
 export default function App() {
   const { user, loading, isHead } = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/reports/:id" element={<ReportPage />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/handovers" element={<Handovers />} />
+        {isHead && <Route path="/materials" element={<MaterialRequests />} />}
         {isHead && <Route path="/work-schedule" element={<WorkSchedulePage />} />}
         {isHead && <Route path="/account" element={<Account />} />}
         <Route path="*" element={<Navigate to="/" replace />} />

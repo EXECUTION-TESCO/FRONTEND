@@ -8,7 +8,9 @@ const statusClass = {
   Draft: 'gray', Submitted: 'blue', 'Under Review': 'amber', 'Changes Requested': 'orange', Accepted: 'green', Rejected: 'red',
   // Task statuses
   'In Progress': 'blue', Overdue: 'red', 'To Do': 'gray', Done: 'green',
-  // Material request statuses
+  // Material request approval workflow
+  'Pending Approval': 'amber', Approved: 'blue', 'PO Created': 'green', Rejected: 'red',
+  // (legacy)
   Requested: 'amber',
 };
 
