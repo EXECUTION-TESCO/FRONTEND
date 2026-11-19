@@ -17,9 +17,10 @@ export default function MaterialRequests() {
   const load = () => {
     api('/materials').then((d) => setRows(d.requests || [])).catch((e) => setErr(e.message)).finally(() => { first.current = false; });
   };
-  // Load + poll so Procurement decisions appear without a manual refresh. Clear the bell.
+  // Load + poll so Procurement decisions appear without a manual refresh.
+  // (Bell notifications are cleared from the bell itself, not by opening this page.)
   useEffect(() => {
-    load(); api('/materials/seen', { method: 'PATCH' }).catch(() => {});
+    load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, []);

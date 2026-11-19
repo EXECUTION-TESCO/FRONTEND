@@ -239,8 +239,9 @@ function Materials({ project, isHead, userId }) {
 
   const load = () => api(`/materials?projectId=${pid}`).then((d) => setList(d.requests || [])).catch((e) => setErr(e.message));
   // Load + poll so Procurement decisions (approve / reject / PO) appear without a manual refresh.
+  // (Notifications are cleared from the bell, not here, so opening this tab doesn't wipe them.)
   useEffect(() => {
-    load(); api('/materials/seen', { method: 'PATCH' }).catch(() => {});
+    load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [pid]); // eslint-disable-line
