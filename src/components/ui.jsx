@@ -10,6 +10,8 @@ const statusClass = {
   'In Progress': 'blue', Overdue: 'red', 'To Do': 'gray', Done: 'green',
   // Material request approval workflow
   'Pending Approval': 'amber', Approved: 'blue', 'PO Created': 'green', Rejected: 'red',
+  // Design request statuses
+  New: 'gray', Assigned: 'blue', 'Pending Review': 'amber', 'Changes Requested': 'orange',
   // (legacy)
   Requested: 'amber',
 };
