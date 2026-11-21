@@ -587,3 +587,11 @@ button.bn-link { background: none; border: 0; font: inherit; font-size: 11px; fo
 .topbar-title span{font-size:12.5px;color:var(--muted)}
 .topbar-title span strong{color:var(--text)}
 @media(max-width:760px){.topbar-title{display:none}}
+
+/* Design request cards — render each request as a bordered card inside the .cards grid,
+   matching the Sales portal layout. */
+.form-sec { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+.form-sec > h3 { margin: 0 0 4px; font-size: 15px; }
+.form-sec > .muted { margin-bottom: 12px; }
+.form-sec .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-bottom: 0; }
+@media (max-width: 640px) { .form-sec .kv { grid-template-columns: 1fr; } }
