@@ -595,3 +595,11 @@ button.bn-link { background: none; border: 0; font: inherit; font-size: 11px; fo
 .form-sec > .muted { margin-bottom: 12px; }
 .form-sec .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-bottom: 0; }
 @media (max-width: 640px) { .form-sec .kv { grid-template-columns: 1fr; } }
+
+/* Daily update — work activity chips (multi-select) */
+.act-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.act-chip { border: 1px solid var(--line); background: #fff; color: var(--text); border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 13px; cursor: pointer; transition: .12s; }
+.act-chip:hover { border-color: var(--accent); }
+.act-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.act-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.act-tag { display: inline-flex; align-items: center; background: var(--accent-soft, #eef7e6); color: var(--accent-d, #2f6b12); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }

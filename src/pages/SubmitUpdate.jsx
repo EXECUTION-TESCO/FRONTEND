@@ -7,7 +7,8 @@ import { Field, ErrorBox, Loader, Empty } from '../components/ui.jsx';
 import CameraCapture, { canUseLiveCamera } from '../components/CameraCapture.jsx';
 
 const STATUSES = ['Not Started', 'Work In Progress', 'On Hold', 'Material Pending', 'Completed', 'Delayed'];
-const blank = { projectId: '', todayProgress: '', workCompleted: '', tomorrowPlan: '', materialRequired: '', materialStatus: 'Required', issues: '', remarks: '', progressPercent: '', projectStatus: '' };
+const WORK_ACTIVITIES = ['Site Surveying', 'Site Marking', 'Soil Excavation', 'Foundation Work', 'Flooring Work', 'Fabrication Work', 'Painting', 'Erection Work', 'Sheet Measurement', 'Sheet Installation'];
+const blank = { projectId: '', todayActivities: [], todayProgress: '', workCompleted: '', tomorrowActivities: [], tomorrowPlan: '', materialRequired: '', materialStatus: 'Required', issues: '', remarks: '', projectStatus: '' };
 
 export default function SubmitUpdate() {
   const { user } = useAuth();
@@ -27,11 +28,12 @@ export default function SubmitUpdate() {
   useEffect(() => { load().catch((e) => setErr(e.message)); }, []);
   const project = useMemo(() => projects?.find((p) => p.id === f.projectId), [projects, f.projectId]);
   useEffect(() => {
-    if (project) setF((o) => ({ ...o, projectStatus: project.status === 'Not Started' ? 'Work In Progress' : project.status, progressPercent: project.progressPercent || '' }));
+    if (project) setF((o) => ({ ...o, projectStatus: project.status === 'Not Started' ? 'Work In Progress' : project.status }));
   }, [project]);
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), []); // eslint-disable-line
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const toggleAct = (key, act) => setF((o) => ({ ...o, [key]: o[key].includes(act) ? o[key].filter((a) => a !== act) : [...o[key], act] }));
   const addFiles = async (list) => {
     const files = Array.from(list || []).filter((x) => x.type.startsWith('image/'));
     const out = [];
@@ -50,11 +52,11 @@ export default function SubmitUpdate() {
     e.preventDefault();
     setErr('');
     if (!f.projectId) return setErr('Select a site / project');
-    if (!f.todayProgress.trim() && !f.workCompleted.trim()) return setErr("Enter today's work progress");
+    if (!f.todayActivities.length && !f.todayProgress.trim() && !f.workCompleted.trim()) return setErr("Select today's work activity or enter today's progress");
     setBusy(true);
     try {
       const fd = new FormData();
-      Object.entries(f).forEach(([k, v]) => fd.append(k, v));
+      Object.entries(f).forEach(([k, v]) => fd.append(k, Array.isArray(v) ? JSON.stringify(v) : v));
       photos.forEach((p) => fd.append('photos', p.file, p.file.name));
       const rep = await api('/reports', { method: 'POST', form: fd });
       setDone(rep);
@@ -94,9 +96,23 @@ export default function SubmitUpdate() {
             </select>
           </Field>
           {project?.instructions && <div className="instructions full small">📌 <b>Instructions:</b> {project.instructions}</div>}
-          <Field label="Today's Work Progress *" full><textarea rows={3} value={f.todayProgress} onChange={set('todayProgress')} placeholder="What is happening at site today" /></Field>
+          <Field label="Today's Work *" full>
+            <div className="act-pick">
+              {WORK_ACTIVITIES.map((a) => (
+                <button type="button" key={a} className={`act-chip ${f.todayActivities.includes(a) ? 'on' : ''}`} onClick={() => toggleAct('todayActivities', a)}>{a}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Today's Work – Notes (optional)" full><textarea rows={2} value={f.todayProgress} onChange={set('todayProgress')} placeholder="Any extra detail about today's work" /></Field>
           <Field label="Work Completed Today" full><textarea rows={2} value={f.workCompleted} onChange={set('workCompleted')} /></Field>
-          <Field label="Tomorrow's Work Plan" full><textarea rows={2} value={f.tomorrowPlan} onChange={set('tomorrowPlan')} /></Field>
+          <Field label="Tomorrow's Work Plan" full>
+            <div className="act-pick">
+              {WORK_ACTIVITIES.map((a) => (
+                <button type="button" key={a} className={`act-chip ${f.tomorrowActivities.includes(a) ? 'on' : ''}`} onClick={() => toggleAct('tomorrowActivities', a)}>{a}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Tomorrow's Plan – Notes (optional)" full><textarea rows={2} value={f.tomorrowPlan} onChange={set('tomorrowPlan')} placeholder="Any extra detail about tomorrow's plan" /></Field>
           <Field label="Material Required"><input value={f.materialRequired} onChange={set('materialRequired')} placeholder="e.g. MS Flat, Fabric" /></Field>
           <Field label="Material Status">
             <select value={f.materialStatus} onChange={set('materialStatus')} disabled={!f.materialRequired.trim()}>
@@ -105,9 +121,6 @@ export default function SubmitUpdate() {
           </Field>
           <Field label="Project Status">
             <select value={f.projectStatus} onChange={set('projectStatus')}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
-          </Field>
-          <Field label={`Overall Progress ${f.progressPercent !== '' ? `(${f.progressPercent}%)` : ''}`}>
-            <input type="range" min="0" max="100" step="5" value={f.progressPercent || 0} onChange={set('progressPercent')} />
           </Field>
           <Field label="Issues or Challenges" full><textarea rows={2} value={f.issues} onChange={set('issues')} /></Field>
           <Field label="Additional Remarks" full><textarea rows={2} value={f.remarks} onChange={set('remarks')} /></Field>

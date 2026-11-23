@@ -45,6 +45,10 @@ export const qs = (o) => {
 export const photoUrl = (reportId, photoId, download) =>
   `${BASE}/api/reports/${reportId}/photos/${photoId}?token=${encodeURIComponent(getToken() || '')}${download ? '&download=1' : ''}`;
 
+// BOQ document link (view inline, or &download=1 to save). Token in URL so <a> links work.
+export const boqUrl = (materialId, fileId, download) =>
+  `${BASE}/api/materials/${materialId}/boq/${fileId}?token=${encodeURIComponent(getToken() || '')}${download ? '&download=1' : ''}`;
+
 export async function downloadFile(path, filename) {
   const res = await fetch(`${BASE}/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
   if (!res.ok) throw new Error('Download failed');

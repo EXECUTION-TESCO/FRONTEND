@@ -4,6 +4,7 @@ import { useLiveApi as useApi } from '../hooks.js';
 import { useAuth } from '../auth.jsx';
 import { fmtDate } from '../api.js';
 import { Badge, Loader, ErrorBox, Empty, Progress } from '../components/ui.jsx';
+import { MyShares } from '../components/ScheduleShare.jsx';
 
 export default function EngineerHome() {
   const { user } = useAuth();
@@ -53,6 +54,8 @@ export default function EngineerHome() {
           <div className="eng-projects">{done.map((p) => <Link key={p.id} to={`/projects/${p.id}`} className="chip done">{p.name}</Link>)}</div>
         </>
       )}
+
+      <MyShares />
     </div>
   );
 }

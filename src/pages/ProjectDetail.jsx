@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download, Trash2, Plus, ListChecks, RefreshCw, FileDown, ArrowLeft } from 'lucide-react';
-import { api, downloadFile, fmtDate, fmtDateTime, fmtTime } from '../api.js';
+import { Pencil, MapPin, User, Building2, CalendarDays, MessageSquare, History, PlusCircle, FileText, Download, Trash2, Plus, ListChecks, RefreshCw, FileDown, ArrowLeft, Paperclip, Eye } from 'lucide-react';
+import { api, downloadFile, boqUrl, fmtDate, fmtDateTime, fmtTime } from '../api.js';
 import { downloadDailyUpdatesPdf } from '../pdf.js';
 import { useLiveApi as useApi } from '../hooks.js';
 import { useAuth } from '../auth.jsx';
@@ -14,6 +14,9 @@ import PhotoGrid from '../components/PhotoGrid.jsx';
 import WorkSchedule from '../components/WorkSchedule.jsx';
 
 const STATUSES = ['Not Started', 'Work In Progress', 'On Hold', 'Material Pending', 'Completed', 'Delayed'];
+const MATERIAL_CATEGORIES = ['Sheet Material', 'Steel Material', 'Civil Material'];
+const MR_PERCENT = { 'Pending Approval': 10, Approved: 30, 'PO Created': 40, Ordered: 50, Processing: 60, Dispatched: 70, 'In Transit': 80, 'Reached Site': 100, Rejected: 0 };
+const mrPct = (m) => (m.status === 'Rejected' ? 0 : (MR_PERCENT[m.deliveryStage] != null ? MR_PERCENT[m.deliveryStage] : (MR_PERCENT[m.status] || 0)));
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -235,7 +238,8 @@ function Materials({ project, isHead, userId }) {
   const [list, setList] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '' });
+  const [form, setForm] = useState({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '', category: '' });
+  const [boqFiles, setBoqFiles] = useState([]);
 
   const load = () => api(`/materials?projectId=${pid}`).then((d) => setList(d.requests || [])).catch((e) => setErr(e.message));
   // Load + poll so Procurement decisions (approve / reject / PO) appear without a manual refresh.
@@ -246,12 +250,23 @@ function Materials({ project, isHead, userId }) {
     return () => clearInterval(t);
   }, [pid]); // eslint-disable-line
 
+  const uploadBoq = async (id, files) => {
+    const fd = new FormData();
+    Array.from(files).forEach((f) => fd.append('files', f, f.name));
+    await api(`/materials/${id}/boq`, { method: 'POST', form: fd });
+  };
   const raise = async () => {
     if (!form.material.trim()) { setErr('Enter the material / item name'); return; }
     setBusy(true); setErr('');
-    try { await api('/materials', { method: 'POST', body: { projectId: pid, ...form } }); setForm({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '' }); await load(); }
-    catch (e) { setErr(e.message); } finally { setBusy(false); }
+    try {
+      const { request } = await api('/materials', { method: 'POST', body: { projectId: pid, ...form } });
+      if (boqFiles.length && request?.id) await uploadBoq(request.id, boqFiles);
+      setForm({ material: '', spec: '', qty: '', unit: '', neededBy: '', notes: '', category: '' });
+      setBoqFiles([]);
+      await load();
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
+  const addBoqTo = async (m, files) => { if (!files.length) return; setErr(''); try { await uploadBoq(m.id, files); await load(); } catch (e) { setErr(e.message); } };
   const withdraw = async (m) => { if (!window.confirm(`Withdraw the request for "${m.material}"?`)) return; try { await api(`/materials/${m.id}`, { method: 'DELETE' }); await load(); } catch (e) { setErr(e.message); } };
 
   return (
@@ -260,7 +275,13 @@ function Materials({ project, isHead, userId }) {
       <ErrorBox error={err} />
 
       {canRaise && (
-        <div className="task-add" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.7fr 0.7fr 1fr auto', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+        <div className="task-add" style={{ display: 'grid', gridTemplateColumns: '1.3fr 2fr 1fr 0.7fr 0.7fr 1fr auto', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+          <Field label="Category">
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <option value="">— Select —</option>
+              {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
           <Field label="Material / item *"><input value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} placeholder="e.g. PU insulated roof sheet" /></Field>
           <Field label="Specification"><input value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="e.g. 40mm, Blue" /></Field>
           <Field label="Qty"><input type="number" min="0" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} /></Field>
@@ -269,22 +290,48 @@ function Materials({ project, isHead, userId }) {
           <button className="btn primary" disabled={busy} onClick={raise}><Plus size={16} /> Request</button>
         </div>
       )}
-      {canRaise && <Field label="Notes (optional)" full><input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Any detail for the purchase team" /></Field>}
+      {canRaise && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end', marginBottom: 6 }}>
+          <Field label="Notes (optional)" full><input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Any detail for the purchase team" /></Field>
+          <Field label="BOQ (Excel / PDF)">
+            <label className="btn ghost sm" style={{ cursor: 'pointer' }}>
+              <Paperclip size={14} /> {boqFiles.length ? `${boqFiles.length} file(s)` : 'Attach BOQ'}
+              <input type="file" accept=".xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden onChange={(e) => setBoqFiles(Array.from(e.target.files || []))} />
+            </label>
+          </Field>
+        </div>
+      )}
 
       {list === null ? <Loader /> : list.length === 0 ? (
         <Empty icon={FileText} title="No material requirements yet" >{canRaise ? 'Raise one above — it goes straight to the Procurement team.' : 'Nothing requested for this project yet.'}</Empty>
       ) : (
         <div className="table-wrap" style={{ marginTop: 10 }}>
           <table className="table">
-            <thead><tr><th>Ref</th><th>Material</th><th className="num">Qty</th><th>Needed by</th><th>Status</th><th>PO</th><th></th></tr></thead>
+            <thead><tr><th>Ref</th><th>Category</th><th>Material</th><th className="num">Qty</th><th>Needed by</th><th>BOQ</th><th>Status</th><th>PO</th><th></th></tr></thead>
             <tbody>
               {list.map((m) => (
                 <tr key={m.id}>
                   <td className="small muted">{m.ref || '—'}</td>
+                  <td>{m.category ? <span className="act-tag">{m.category}</span> : <span className="muted small">—</span>}</td>
                   <td><div style={{ fontWeight: 600 }}>{m.material}</div>{m.spec && <div className="muted small">{m.spec}</div>}{m.status === 'Rejected' && m.rejectReason && <div className="small danger">Rejected: {m.rejectReason}</div>}{m.notes && <div className="muted small">{m.notes}</div>}</td>
                   <td className="num">{m.qty || '—'} {m.unit}</td>
                   <td>{m.neededBy ? fmtDate(m.neededBy) : '—'}</td>
-                  <td><Badge value={m.status} /></td>
+                  <td className="small">
+                    {(m.boq || []).map((b) => (
+                      <div key={b.fileId} style={{ display: 'flex', gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                        <a href={boqUrl(m.id, b.fileId)} target="_blank" rel="noopener noreferrer" title={b.filename}><Eye size={13} style={{ verticalAlign: '-2px' }} /> View</a>
+                        <a href={boqUrl(m.id, b.fileId, true)} title="Download"><Download size={13} style={{ verticalAlign: '-2px' }} /></a>
+                      </div>
+                    ))}
+                    {canRaise && (isHead || (m.createdBy && m.createdBy.id) === userId) && (
+                      <label className="link" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <Paperclip size={12} /> Add
+                        <input type="file" accept=".xls,.xlsx,application/pdf" multiple hidden onChange={(e) => addBoqTo(m, Array.from(e.target.files || []))} />
+                      </label>
+                    )}
+                    {!(m.boq || []).length && !(canRaise && (isHead || (m.createdBy && m.createdBy.id) === userId)) && <span className="muted">—</span>}
+                  </td>
+                  <td><Badge value={m.deliveryStage || m.status} />{m.status !== 'Rejected' && <div className="muted small">{mrPct(m)}%{m.deliveryStage === 'Reached Site' ? ' · reached site' : ''}</div>}</td>
                   <td className="small">{m.poRef || '—'}</td>
                   <td>{m.status === 'Pending Approval' && (isHead || (m.createdBy && m.createdBy.id) === userId) && <button className="btn ghost xs danger" onClick={() => withdraw(m)} title="Withdraw"><Trash2 size={14} /></button>}</td>
                 </tr>

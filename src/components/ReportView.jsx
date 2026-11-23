@@ -84,7 +84,9 @@ export default function ReportView({ data, onChange }) {
             <div className="rv-label">{label}</div>
             {compare && prev && <div className="rv-val prev">{prev[k] || '—'}{k === 'materialRequired' && prev.materialStatus && <> <Badge value={prev.materialStatus} /></>}</div>}
             <div className="rv-val">
-              {r[k] || '—'}
+              {k === 'todayProgress' && r.todayActivities?.length > 0 && <div className="act-tags">{r.todayActivities.map((a) => <span className="act-tag" key={a}>{a}</span>)}</div>}
+              {k === 'tomorrowPlan' && r.tomorrowActivities?.length > 0 && <div className="act-tags">{r.tomorrowActivities.map((a) => <span className="act-tag" key={a}>{a}</span>)}</div>}
+              {(k === 'todayProgress' && r.todayActivities?.length > 0 && !r[k]) || (k === 'tomorrowPlan' && r.tomorrowActivities?.length > 0 && !r[k]) ? '' : (r[k] || '—')}
               {k === 'materialRequired' && r.materialRequired && (
                 <div className="mat-row">
                   <Badge value={r.materialStatus} />

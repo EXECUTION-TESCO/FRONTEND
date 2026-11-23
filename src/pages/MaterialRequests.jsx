@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Package, History, X } from 'lucide-react';
-import { api, fmtDate, fmtDateTime } from '../api.js';
+import { Package, History, X, Eye, Download } from 'lucide-react';
+import { api, boqUrl, fmtDate, fmtDateTime } from '../api.js';
 import { Badge, Loader, ErrorBox, Empty, Modal } from '../components/ui.jsx';
 
 const FILTERS = ['', 'Pending Approval', 'Approved', 'PO Created', 'Rejected'];
+const MR_PERCENT = { 'Pending Approval': 10, Approved: 30, 'PO Created': 40, Ordered: 50, Processing: 60, Dispatched: 70, 'In Transit': 80, 'Reached Site': 100, Rejected: 0 };
+const mrPct = (m) => (m.status === 'Rejected' ? 0 : (MR_PERCENT[m.deliveryStage] != null ? MR_PERCENT[m.deliveryStage] : (MR_PERCENT[m.status] || 0)));
 
 // Execution Head dashboard — track every material request raised to Procurement,
 // with its current status, the Purchase Manager's rejection reason, and full history.
@@ -49,16 +51,18 @@ export default function MaterialRequests() {
         <div className="panel no-pad">
           <div className="table-wrap">
             <table className="table responsive">
-              <thead><tr><th>Ref</th><th>Project</th><th>Material</th><th>Qty</th><th>Requested</th><th>Status</th><th>PO</th><th></th></tr></thead>
+              <thead><tr><th>Ref</th><th>Project</th><th>Category</th><th>Material</th><th>Qty</th><th>BOQ</th><th>Requested</th><th>Status</th><th>PO</th><th></th></tr></thead>
               <tbody>
                 {shown.map((m) => (
                   <tr key={m.id}>
                     <td data-label="Ref" className="small muted">{m.ref || '—'}</td>
                     <td data-label="Project">{m.projectName}{m.handoverRef && <div className="muted small">{m.handoverRef}</div>}</td>
+                    <td data-label="Category">{m.category ? <span className="act-tag">{m.category}</span> : <span className="muted small">—</span>}</td>
                     <td data-label="Material"><strong>{m.material}</strong>{m.spec && <div className="muted small">{m.spec}</div>}{m.status === 'Rejected' && m.rejectReason && <div className="small danger">Rejected: {m.rejectReason}</div>}</td>
                     <td data-label="Qty">{m.qty || '—'} {m.unit}</td>
+                    <td data-label="BOQ" className="small">{(m.boq || []).length ? (m.boq).map((b) => (<a key={b.fileId} href={boqUrl(m.id, b.fileId)} target="_blank" rel="noopener noreferrer" title={b.filename} style={{ marginRight: 8 }}><Eye size={13} style={{ verticalAlign: '-2px' }} /></a>)) : '—'}</td>
                     <td data-label="Requested" className="small">{fmtDate(m.createdAt)}<div className="muted">{m.createdBy?.name}</div></td>
-                    <td data-label="Status"><Badge value={m.status} /></td>
+                    <td data-label="Status"><Badge value={m.deliveryStage || m.status} />{m.status !== 'Rejected' && <div className="muted small">{mrPct(m)}%{m.deliveryStage === 'Reached Site' ? ' · reached site' : ''}</div>}</td>
                     <td data-label="PO" className="small">{m.poRef || '—'}</td>
                     <td data-label=""><button className="btn ghost sm" onClick={() => setHistory(m)}><History size={14} /> History</button></td>
                   </tr>
